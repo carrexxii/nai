@@ -30,9 +30,12 @@ type
         texture_count*  : uint16
         skeleton_count* : uint16
 
+    # total size: 8 + vert_count*sizeof(Vertex) + index_count*sizeof(uint32)
     Vertices* = object
-        count*: uint32
-        verts*: ptr UncheckedArray[float]
+        vert_count* : uint32
+        index_count*: uint32
+        verts*: ptr UncheckedArray[float32] # offset: 8
+        inds* : ptr UncheckedArray[uint32]  # offset: 8 + vert_count*sizeof(Vertex)
 
 proc `$`*(header: Header): string =
     let valid_msg = if header.magic == NaiMagic: "valid" else: "invalid"

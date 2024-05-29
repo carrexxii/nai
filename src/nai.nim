@@ -1,9 +1,11 @@
 import
     std/[streams, macros],
-    common, naiheader, mesh, material, animation, texture
-from std/sequtils  import zip
+    common, header, mesh, material, animation, texture
+# from std/sequtils  import zip
 from std/strutils  import split
 from std/strformat import fmt
+
+# TODO: variable index size with an 'auto` option that detects size needed
 
 const output_flags* = OutputMask {VerticesInterleaved}
 const vertex_flags* = VertexMask {VertexPosition, VertexNormal, VertexUV}
@@ -204,17 +206,30 @@ proc write_header*(scene: ptr Scene; file: Stream) =
     )
     file.write_data(header.addr, sizeof header)
 
+template iter(count: int; a, b, c: ptr UncheckedArray[untyped]): untyped =
+    iterator iter_impl(n: int; s1: typeof a; s2: typeof b; s3: typeof c): (typeof a[0], typeof b[0], typeof c[0]) =
+        for i in 0..<n:
+            yield (s1[i], s2[i], s3[i])
+
+    iter_impl(count, a, b, c)
+
 proc write_meshes*(scene: ptr Scene; file: Stream; verbose: bool) =
+    template to_oa(arr, c): untyped = to_open_array(arr, 0, int (c - 1))
     template write(flags, dst, src) =
-        when flags < vertex_flags:
+        when flags * vertex_flags != {}:
             dst = src
 
     if scene.mesh_count != 1:
         assert(false, "Need to implement multiple meshes")
-    for mesh in to_open_array(scene.meshes, 0, scene.mesh_count.int - 1):
+    for mesh in to_oa(scene.meshes, scene.mesh_count):
+        var index_count = 0
+        for face in to_oa(mesh.faces, mesh.face_count):
+            index_count += int face.index_count
+
         if verbose:
             echo fmt"Mesh '{mesh.name}' (material index: {mesh.material_index}) {vertex_flags}"
-            echo fmt"    {mesh.vertex_count} vertices ({mesh.face_count} faces)"
+            echo fmt"    {mesh.vertex_count} vertices ({index_count} indices making {mesh.face_count} faces)"
+            echo fmt"    UV components -> {mesh.uv_component_count}"
             echo fmt"    {mesh.bone_count} bones"
             echo fmt"    {mesh.anim_mesh_count} animation meshes (morphing method: {mesh.morph_method})"
             echo fmt"    AABB: {mesh.aabb}"
@@ -225,12 +240,11 @@ proc write_meshes*(scene: ptr Scene; file: Stream; verbose: bool) =
 
         let vc = mesh.vertex_count.int - 1
         when VerticesInterleaved in output_flags:
-            echo mesh.vertex_count
-            file.write_data(mesh.vertex_count.addr, sizeof uint32)
+            file.write_data(mesh.vertex_count.addr, sizeof header.Vertices.vert_count)
+            file.write_data(index_count.addr      , sizeof header.Vertices.index_count)
 
             var vertex: Vertex
-            for i, (pos, normal) in zip(to_open_array(mesh.vertices, 0, vc),
-                                        to_open_array(mesh.normals , 0, vc)):
+            for (pos, normal, uv) in iter(vc, mesh.vertices, mesh.normals, mesh.texture_coords[0]):
                 write({VertexPosition}                   , vertex.pos      , pos)
                 write({VertexNormal}                     , vertex.normal   , normal)
                 write({VertexTangent}                    , vertex.tangent  , tangent)
@@ -238,7 +252,13 @@ proc write_meshes*(scene: ptr Scene; file: Stream; verbose: bool) =
                 write({VertexColourRGBA, VertexColourRGB}, vertex.colour   , colour)
                 write({VertexUV, VertexUV3}              , vertex.uv       , uv)
                 file.write_data(vertex.addr, sizeof vertex)
-                if mesh.vertex_count > 2000:
-                    echo vertex
+                # if vc < 2000:
+                    # echo vertex
+
+            for face in to_oa(mesh.faces, mesh.face_count):
+                for index in to_oa(face.indices, face.index_count):
+                    let index32 = uint32 index
+                    file.write_data(index32.addr, sizeof index32)
+
         elif VerticesSeparated in output_flags:
             assert false

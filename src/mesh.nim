@@ -61,5 +61,7 @@ type
         bones*      : ptr UncheckedArray[ptr Bone]
 
     Face* = object
-        indices_count*: uint32
-        indices*      : ptr UncheckedArray[uint32]
+        index_count*: uint32
+        indices*    : ptr UncheckedArray[uint32]
+
+converter v2_to_v3*(v: Vec3): Vec2 = Vec2(x: v.x, y: v.y)

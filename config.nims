@@ -3,6 +3,7 @@ import std/[strformat, strutils, sequtils]
 const
     Bin = "naic"
 
+    SrcDir   = "./src"
     BuildDir = "./build"
     LibDir   = "./lib"
     TestDir  = "./tests"
@@ -19,14 +20,14 @@ func basename(path: string; with_ext = false): string =
         result = path[start..<stop]
 
 task build, "Build Nai~":
-    exec fmt"nim c --nimCache:{BuildDir} -o:{Bin} src/main.nim"
+    exec &"nim c --nimCache:{BuildDir} -o:{Bin} {SrcDir}/main.nim"
 
 task build_libs, "Build libraries":
     # Assimp
-    with_dir fmt"{LibDir}/assimp":
-        exec fmt"cmake -B . -S . {AssimpFlags}"
-        exec fmt"cmake --build . -j"
-    exec fmt"cp {LibDir}/assimp/build/bin/*.so* {LibDir}/"
+    with_dir &"{LibDir}/assimp":
+        exec &"cmake -B . -S . {AssimpFlags}"
+        exec &"cmake --build . -j"
+    exec &"cp {LibDir}/assimp/build/bin/*.so* {LibDir}/"
 
 task restore, "Fetch and build dependencies":
     exec "git submodule update --init --remote --merge --recursive -j 8"
@@ -38,4 +39,4 @@ task test, "Run tests":
     let files = (list_files TestDir).filter(proc (path: string): bool = not path.endswith(".nai"))
     for file in files:
         let fname = basename file
-        exec fmt"./{Bin} --ignore --verbose -o:{TestDir}/{fname}.nai {file}"
+        exec &"./{Bin} --ignore --verbose -o:{TestDir}/{fname}.nai {file}"
