@@ -1,4 +1,5 @@
-from std/strformat import fmt
+from std/strformat import `&`
+export `&`
 
 const NoArmaturePopulateProcess* = true
 
@@ -86,7 +87,7 @@ proc `$`*(str: AIString): string =
 func `$`*(aabb: AABB): string =
     let max = aabb.max
     let min = aabb.min
-    result = fmt"[max({max.x:.2f}, {max.y:.2f}, {max.z:.2f}) -> min({min.x:.2f}, {min.y:.2f}, {min.z:.2f})]"
+    result = &"[max({max.x:.2f}, {max.y:.2f}, {max.z:.2f}) -> min({min.x:.2f}, {min.y:.2f}, {min.z:.2f})]"
 
 #[ -------------------------------------------------------------------- ]#
 

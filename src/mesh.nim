@@ -1,4 +1,6 @@
-import common
+import
+    std/macros,
+    common, header
 
 type
     Mesh* = object
@@ -64,4 +66,44 @@ type
         index_count*: uint32
         indices*    : ptr UncheckedArray[uint32]
 
-converter v2_to_v3*(v: Vec3): Vec2 = Vec2(x: v.x, y: v.y)
+macro build_vertex() =
+    var fields = newNimNode nnkRecList
+    for flag in vertex_flags:
+        let (fn, fk) = case flag
+        of Position  : ("pos"      , "Vec3"   )
+        of Normal    : ("normal"   , "Vec3"   )
+        of Tangent   : ("tangent"  , "Vec3"   )
+        of Bitangent : ("bitangent", "Vec3"   )
+        of ColourRGBA: ("colour"   , "Colour" )
+        of ColourRGB : ("colour"   , "Colour3")
+        of UV        : ("uv"       , "Vec2"   )
+        of UV3       : ("uv"       , "Vec3"   )
+
+        let def = nnkPostFix.newTree(
+            ident "*",
+            ident fn,
+        )
+        fields.add newIdentDefs(def, ident fk)
+
+    # Put it all together into a type section+def
+    nnkTypeSection.newTree(
+        nnkTypeDef.newTree(
+            nnkPragmaExpr.newTree(
+                nnkPostFix.newTree(
+                    ident "*",
+                    ident "Vertex",
+                ),
+                nnkPragma.newTree(
+                    ident "packed",
+                ),
+            ),
+            newEmptyNode(),
+            nnkObjectTy.newTree(
+                newEmptyNode(),
+                newEmptyNode(),
+                fields,
+            )
+        )
+    )
+
+build_vertex()

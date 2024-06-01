@@ -8,8 +8,8 @@ const
     LibDir   = "./lib"
     TestDir  = "./tests"
 
-    AssimpFlags = "-DASSIMP_INSTALL=OFF -DASSIMP_NO_EXPORT=ON -DASSIMP_BUILD_TESTS=OFF " &
-                  "-DASSIMP_INSTALL_PDB=OFF -DBUILD_SHARED_LIBS=OFF"
+    AssimpFlags = "-DASSIMP_INSTALL=OFF -DASSIMP_BUILD_TESTS=OFF " &
+                  "-DASSIMP_BUILD_ALL_EXPORTERS_BY_DEFAULT=OFF -DASSIMP_INSTALL_PDB=OFF"
 
 func basename(path: string; with_ext = false): string =
     let start = (path.rfind '/') + 1
@@ -20,14 +20,14 @@ func basename(path: string; with_ext = false): string =
         result = path[start..<stop]
 
 task build, "Build Nai~":
-    exec &"nim c --nimCache:{BuildDir} -o:{Bin} {SrcDir}/main.nim"
+    exec &"nim c --nimCache:{BuildDir} -o:{Bin} {SrcDir}/nai.nim"
 
 task build_libs, "Build libraries":
     # Assimp
     with_dir &"{LibDir}/assimp":
-        exec &"cmake -B . -S . {AssimpFlags}"
-        exec &"cmake --build . -j"
-    exec &"cp {LibDir}/assimp/build/bin/*.so* {LibDir}/"
+        exec &"cmake -B . -S . {AssimpFlags} -DCMAKE_BUILD_TYPE=release"
+        exec &"cmake --build . -j8"
+    exec &"cp {LibDir}/assimp/bin/*.so* {LibDir}/"
 
 task restore, "Fetch and build dependencies":
     exec "git submodule update --init --remote --merge --recursive -j 8"

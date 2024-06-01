@@ -73,12 +73,12 @@ type
 
 const Unlit* = NoShading
 
-type TextureFlag* = distinct uint32
-func `or`*(a, b: TextureFlag): TextureFlag {.borrow.}
-const
-    TextureInvert*      = 0x1
-    TextureUseAlpha*    = 0x2
-    TextureIgnoreAlpha* = 0x4
+type TextureFlag* {.size: sizeof(cint).} = enum
+    Invert      = 0x1
+    UseAlpha    = 0x2
+    IgnoreAlpha = 0x4
+func `or`*(a, b: TextureFlag): TextureFlag =
+    TextureFlag ((cint a) or (cint b))
 
 type
     Material* = object
@@ -99,4 +99,5 @@ type
         scaling    : Vec2
         rotation   : Real
 
-proc `$`*(kind: TextureKind): cstring {.importc: "aiTextureTypeToString", dynlib: AIPath.}
+proc texture_kind_to_string*(kind: TextureKind): cstring {.importc: "aiTextureTypeToString", dynlib: AIPath.}
+proc `$`*(kind: TextureKind): string = $(texture_kind_to_string kind)

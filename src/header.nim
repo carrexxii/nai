@@ -1,24 +1,27 @@
 from std/strformat import `&`
 
-const NaiMagic*: array[4, byte] = [78, 65, 73, 126]
+const NAIMagic*: array[4, byte] = [78, 65, 73, 126]
 
 type
     OutputFlag* = enum
         VerticesInterleaved
         VerticesSeparated
+        TextureInternal
+        TextureExternal
     OutputMask* {.size: sizeof(uint16).} = set[OutputFlag]
 
     VertexFlag* = enum
-        VertexPosition
-        VertexNormal
-        VertexTangent
-        VertexBitangent
-        VertexColourRGBA
-        VertexColourRGB
-        VertexUV
-        VertexUV3
+        Position
+        Normal
+        Tangent
+        Bitangent
+        ColourRGBA
+        ColourRGB
+        UV
+        UV3
     VertexMask* {.size: sizeof(uint16).} = set[VertexFlag]
 
+type
     Header* {.packed.} = object
         magic*          : array[4, byte]
         version*        : array[2, byte]
@@ -38,7 +41,7 @@ type
         inds* : ptr UncheckedArray[uint32]  # offset: 8 + vert_count*sizeof(Vertex)
 
 proc `$`*(header: Header): string =
-    let valid_msg = if header.magic == NaiMagic: "valid" else: "invalid"
+    let valid_msg = if header.magic == NAIMagic: "valid" else: "invalid"
     &"Nai object header:\n"                                  &
     &"    Magic number    -> {header.magic} ({valid_msg})\n" &
     &"    Output flags    -> {header.output_flags}\n"        &
@@ -48,3 +51,7 @@ proc `$`*(header: Header): string =
     &"    Animation count -> {header.animation_count}\n"     &
     &"    Texture count   -> {header.texture_count}\n"       &
     &"    Skeleton count  -> {header.skeleton_count}\n"
+
+const
+    output_flags*  = OutputMask {VerticesInterleaved}
+    vertex_flags*  = VertexMask {Position, Normal, UV}
