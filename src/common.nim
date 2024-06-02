@@ -3,7 +3,8 @@ export `&`
 
 const NoArmaturePopulateProcess* = true
 
-const AIPath* = "./lib/libassimp.so"
+from std/os import parent_dir
+const AIPath* = current_source_path().parent_dir.parent_dir & "/lib/libassimp.so"
 
 const
     MaxAIStringLen*   = 1024

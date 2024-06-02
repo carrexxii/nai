@@ -4,10 +4,13 @@ const NAIMagic*: array[4, byte] = [78, 65, 73, 126]
 
 type
     OutputFlag* = enum
+        VerticesNone
         VerticesInterleaved
         VerticesSeparated
-        TextureInternal
-        TextureExternal
+
+        TexturesNone
+        TexturesInternal
+        TexturesExternal
     OutputMask* {.size: sizeof(uint16).} = set[OutputFlag]
 
     VertexFlag* = enum
@@ -20,6 +23,14 @@ type
         UV
         UV3
     VertexMask* {.size: sizeof(uint16).} = set[VertexFlag]
+
+    TextureFlag* = enum
+        Default
+        RGBA
+        ARGB
+        BGRA
+        ABGR
+    TextureMask* {.size: sizeof(uint16).} = set[TextureFlag]
 
 type
     Header* {.packed.} = object
@@ -52,6 +63,6 @@ proc `$`*(header: Header): string =
     &"    Texture count   -> {header.texture_count}\n"       &
     &"    Skeleton count  -> {header.skeleton_count}\n"
 
-const
-    output_flags*  = OutputMask {VerticesInterleaved}
-    vertex_flags*  = VertexMask {Position, Normal, UV}
+var output_flags* : OutputMask
+var vertex_flags* : VertexMask
+var texture_flags*: TextureMask

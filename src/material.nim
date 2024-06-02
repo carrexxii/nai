@@ -73,11 +73,11 @@ type
 
 const Unlit* = NoShading
 
-type TextureFlag* {.size: sizeof(cint).} = enum
+type TextureFlag {.size: sizeof(cint).} = enum
     Invert      = 0x1
     UseAlpha    = 0x2
     IgnoreAlpha = 0x4
-func `or`*(a, b: TextureFlag): TextureFlag =
+func `or`(a, b: TextureFlag): TextureFlag =
     TextureFlag ((cint a) or (cint b))
 
 type

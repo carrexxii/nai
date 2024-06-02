@@ -1,9 +1,11 @@
 import
-    std/[streams, parseopt],
+    std/[streams, parseopt, parsecfg, paths, tables, strutils],
     common, mesh, texture, material, animation, light, camera, header
-from std/os       import get_current_dir, extract_filename, `/`
-from std/strutils import split
+from std/os       import get_app_dir
+from std/files    import file_exists
 from std/sequtils import foldl
+
+const ConfigFileName = "nai.ini"
 
 type
     ProcessFlag* {.size: sizeof(cint).} = enum
@@ -114,18 +116,26 @@ proc write_header*(scene: ptr Scene; file: Stream) =
     file.write_data(header.addr, sizeof header)
 
 proc validate*(scene: ptr Scene; output_errs: bool): int =
-    proc check(val: uint; name: string): int =
-        result = if val != 0: 1 else: 0
-        if val != 0 and output_errs:
-            echo yellow &"Warning: scene contains {val} {name} which are not supported"
+    proc error(msg: string)   = echo red    &"Error: {msg}"
+    proc warning(msg: string) = echo yellow &"Warning: {msg}"
 
-    result =
-        check(scene.texture_count  , "textures")   +
-        check(scene.material_count , "materials")  +
-        check(scene.animation_count, "animations") +
-        check(scene.skeleton_count , "skeletons")  +
-        check(scene.light_count    , "lights")     +
-        check(scene.camera_count   , "cameras")
+    block ImplementationCheck:
+        proc check(val: uint; name: string): int =
+            result = if val != 0: 1 else: 0
+            if val != 0 and output_errs:
+                warning &"scene contains {val} {name} which are not supported"
+
+        result =
+            check(scene.texture_count  , "textures")   +
+            check(scene.material_count , "materials")  +
+            check(scene.animation_count, "animations") +
+            check(scene.skeleton_count , "skeletons")  +
+            check(scene.light_count    , "lights")     +
+            check(scene.camera_count   , "cameras")
+
+    # TODO: continue prompt
+    if scene.texture_count > 0 and not (TexturesNone in output_flags):
+        error &"File has {scene.texture_count} textures but '{TexturesNone}' was not specified"
 
 #[ -------------------------------------------------------------------- ]#
 
@@ -155,7 +165,7 @@ proc write_meshes*(scene: ptr Scene; file: Stream; verbose: bool) =
 
         if verbose:
             echo &"Mesh '{mesh.name}' (material index: {mesh.material_index}) {vertex_flags}"
-            echo &"\t{mesh.vertex_count} vertices of {sizeof Vertex}B ({index_count} indices making {mesh.face_count} faces)"
+            echo &"\t{mesh.vertex_count} vertices of {0}B ({index_count} indices making {mesh.face_count} faces)"
             echo &"\tUV components -> {mesh.uv_component_count}"
             echo &"\t{mesh.bone_count} bones"
             echo &"\t{mesh.anim_mesh_count} animation meshes (morphing method: {mesh.morph_method})"
@@ -165,19 +175,19 @@ proc write_meshes*(scene: ptr Scene; file: Stream; verbose: bool) =
             echo "Error: mesh contains non-triangle primitives"
             return
 
-        when VerticesInterleaved in output_flags:
+        if VerticesInterleaved in output_flags:
             file.write_data(mesh.vertex_count.addr, sizeof header.Vertices.vert_count)
             file.write_data(index_count.addr      , sizeof header.Vertices.index_count)
 
-            var vertex: Vertex
-            for (pos, normal, uv) in iter(int mesh.vertex_count, mesh.vertices, mesh.normals, mesh.texture_coords[0]):
-                write({Position}             , vertex.pos      , pos)
-                write({Normal}               , vertex.normal   , normal)
-                write({Tangent}              , vertex.tangent  , tangent)
-                write({Bitangent}            , vertex.bitangent, bitangent)
-                write({ColourRGBA, ColourRGB}, vertex.colour   , colour)
-                write({UV3, UV}              , vertex.uv       , uv) # TODO: need to check if the file actually has these before reading
-                file.write_data(vertex.addr, sizeof vertex)
+            # var vertex: Vertex
+            # for (pos, normal, uv) in iter(int mesh.vertex_count, mesh.vertices, mesh.normals, mesh.texture_coords[0]):
+            #     write({Position}             , vertex.pos      , pos)
+            #     write({Normal}               , vertex.normal   , normal)
+            #     write({Tangent}              , vertex.tangent  , tangent)
+            #     write({Bitangent}            , vertex.bitangent, bitangent)
+            #     write({ColourRGBA, ColourRGB}, vertex.colour   , colour)
+            #     write({UV3, UV}              , vertex.uv       , uv) # TODO: need to check if the file actually has these before reading
+            #     file.write_data(vertex.addr, sizeof vertex)
                 # if mesh.vertex_count < 2000:
                     # echo vertex
 
@@ -190,20 +200,26 @@ proc write_meshes*(scene: ptr Scene; file: Stream; verbose: bool) =
             assert false
 
 proc write_textures*(scene: ptr Scene; file: Stream; verbose: bool) =
-    var str_buf = new_string MaxTextureHintLen
-    var name = "a"
     for texture in to_oa(scene.textures, scene.texture_count):
-        copy_mem(str_buf[0].addr, texture.format_hint[0].addr, MaxTextureHintLen)
-        echo &"Texture '{texture.filename}' ({texture.width}x{texture.height}):"
-        echo &"\tFormat hint -> {str_buf}"
-        echo &"\tHas Data    -> {texture.data != nil}"
-        # var file = open_file_stream(name & ".png", fmWrite)
-        # file.write_data(texture.data[0].addr, int texture.width)
-        # close file
+        var fmt_hint = new_string MaxTextureHintLen
+        copy_mem(fmt_hint[0].addr, texture.format_hint[0].addr, MaxTextureHintLen)
+        if verbose:
+            echo &"Texture '{texture.filename}' ({texture.width}x{texture.height}):"
+            echo &"\tFormat hint      -> {fmt_hint}"
+            echo &"\tData is internal -> {texture.data != nil}"
+
+        if TexturesExternal in output_flags:
+            var file = open_file_stream("" & fmt_hint, fmWrite)
+            defer: close file
+
+            file.write_data(texture.data[0].addr, int texture.width)
 
 #[ -------------------------------------------------------------------- ]#
 
 let cwd = get_current_dir()
+
+func `~`(path: string): Path =
+    Path path
 
 proc write_help() =
     echo "Usage:"
@@ -212,6 +228,7 @@ proc write_help() =
     echo "Options: (opt:VAL or opt=VAL)"
     echo "    -i, --input:PATH        Explicitly define an input file"
     echo "    -o, --output:PATH       Define the output path (defaults to current directory)"
+    echo "    -c, --config:FILE       Specify a configuration file (defaults to nai.ini)"
     echo "    -f, --force             Ignore warnings for unsupported components"
     echo "    -v, --verbose           Output extra information about the file being compiled"
     echo "    -q, --quiet             Don't output warnings"
@@ -223,56 +240,125 @@ proc write_help() =
 
     quit 0
 
-proc check_duplicate(val, kind: string) =
-    if val != "":
-        echo &"Error: duplicate inputs provided for '{kind}'"
+proc check_duplicate(val, kind: string | Path) =
+    if val != default (typeof val):
+        echo red &"Error: duplicate inputs provided for '{kind}'"
         quit 1
 
-proc check_val(val, opt: string): string =
+proc check_present(val, opt: string): string =
     if val == "":
-        echo &"No value provided for '{opt}'"
+        echo red &"No value provided for '{opt}'"
         quit 1
     result = val
+
+proc bool_opt(key, val: string): bool =
+    case to_lower val
+    of "", "true" , "t", "yes", "y", "on" : true
+    of     "false", "f", "no" , "n", "off": false
+    else:
+        echo red &"Invalid value for '{key}'. Expected a boolean value."
+        quit 1
+
+from std/setutils import full_set
+import std/enumerate
+proc string_of_output_flags(): string =
+    let set_str = $full_set OutputFlag
+    result = "\t"
+    for (i, c) in enumerate set_str:
+        if c == ',':
+            result.add '\n'
+            result.add '\t'
+            continue
+        elif c in [' ', ',', '{', '}']:
+            continue
+        elif (is_upper_ascii c) and (is_alpha_ascii set_str[i - 1]):
+            result.add ": "
+
+        result.add c
 
 when is_main_module:
     var
         options = init_opt_parser()
-        output : string = cwd
-        input  : string = ""
-        verbose: bool = false
-        ignore : bool = false
-        quiet  : bool = false
+        out_file: Path = cwd
+        in_file : Path
+        cfg_file: Path
+        verbose : bool = false
+        ignore  : bool = false
+        quiet   : bool = false
     for kind, key, val in get_opt options:
         case kind
         of cmdLongOption, cmdShortOption:
             case key
             of "help"   , "h": write_help()
-            of "verbose", "v": verbose = true
-            of "quiet"  , "q": quiet   = true
-            of "output" , "o": output  = check_val(val, key)
+            of "verbose", "v": verbose  = key.bool_opt val
+            of "quiet"  , "q": quiet    = key.bool_opt val
+            of "config" , "c": cfg_file = ~key
+            of "output" , "o": out_file = ~(val.check_present key)
             of "input"  , "i":
-                check_duplicate(input, "input")
-                input = val
+                in_file.check_duplicate ~"input"
+                in_file = ~val
             of "force", "ignore", "f": ignore = true
             else:
-                echo &"Unrecognized option: '{key}'"
+                echo red &"Unrecognized option: '{key}'"
                 quit 1
         of cmdArgument:
-            check_duplicate(input, "input")
-            input = if key == "": val else: key
+            in_file.check_duplicate "input"
+            in_file = ~(if key == "": val else: key)
         of cmdEnd:
             discard
 
-    if input == "":
-        echo "Error: no input file provided"
+    if in_file == ~"":
+        echo red "Error: no input file provided"
         write_help()
 
-    if output == cwd:
-        output = cwd / extract_filename input
+    if out_file == cwd:
+        out_file = cwd / extract_filename in_file
 
-    var scene = import_file(input, GenBoundingBoxes)
+    if cfg_file == default Path:
+        let cwd_ini_path = ~get_app_dir() / ~ConfigFileName
+        let bin_ini_path = cwd / ~ConfigFileName
+        if file_exists cwd_ini_path:
+            cfg_file = cwd_ini_path
+        elif file_exists bin_ini_path:
+            cfg_file = bin_ini_path
+        else:
+            echo red "Error: no configuration file specified and could not find 'nai.ini' (use --config/-c to specify)"
+            quit 1
+
+    let config = load_config $cfg_file
+    for key in config.keys:
+        template push_flags(section, kind) =
+            for val in config[key].keys:
+                section.incl (parse_enum[kind] val)
+
+        case to_lower key
+        of "vertex" : push_flags(vertex_flags , VertexFlag)
+        of "texture": push_flags(texture_flags, TextureFlag)
+        of "":
+            for (k, v) in pairs config[""]:
+                try:
+                    let en = parse_enum[OutputFlag] &"{capitalize_ascii k}{capitalize_ascii v}"
+                    output_flags.incl en
+                except ValueError:
+                    echo red &"Error: Invalid output flag '{k}: {v}' \nValid values:\n{string_of_output_flags()})"
+                    quit 1
+        else:
+            echo yellow &"Error: unrecognized configuration section '{key}'"
+            continue
+
+    proc check_incompatible(flags: OutputMask): bool =
+        let intersection = flags * output_flags
+        if intersection.len > 1:
+            echo red &"Incompatible flags '{intersection}'"
+            result = true
+
+    if (check_incompatible {TexturesNone, TexturesInternal, TexturesExternal}) or
+       (check_incompatible {VerticesNone, VerticesInterleaved, VerticesSeparated}):
+        quit 1
+
+    var scene = import_file($in_file, GenBoundingBoxes)
     if verbose:
-        echo &"Scene '{scene.name}' ('{input}' -> '{output}')"
+        echo &"Scene '{scene.name}' ('{in_file}' -> '{out_file}')"
         echo &"\tMeshes     -> {scene.mesh_count}"
         echo &"\tMaterials  -> {scene.material_count}"
         echo &"\tAnimations -> {scene.animation_count}"
@@ -282,10 +368,10 @@ when is_main_module:
         echo &"\tSkeletons  -> {scene.skeleton_count}"
 
     if validate(scene, not quiet) != 0 and not ignore:
-        echo red &"Error: File '{input}' contains unsupported components (use -f/--force/--ignore to continue regardless)"
+        echo red &"Error: File '{in_file}' contains unsupported components (use -f/--force/--ignore to continue regardless)"
         quit 1
 
-        var file = open_file_stream(output, fmWrite)
+        var file = open_file_stream($out_file, fmWrite)
         write_header(scene, file)
         write_meshes(scene, file, verbose)
         write_textures(scene, file, verbose)
