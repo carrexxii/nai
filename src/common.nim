@@ -1,5 +1,6 @@
+import std/sugar
 from std/strformat import `&`
-export `&`
+export sugar, `&`
 
 const NoArmaturePopulateProcess* = true
 

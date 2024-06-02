@@ -1,9 +1,10 @@
 import
-    std/[streams, parseopt, parsecfg, paths, tables, strutils],
+    std/[streams, parseopt, parsecfg, paths, tables, strutils, enumerate],
     common, mesh, texture, material, animation, light, camera, header
 from std/os       import get_app_dir
 from std/files    import file_exists
-from std/sequtils import foldl
+from std/sequtils import foldl, to_seq
+from std/setutils import full_set
 
 const ConfigFileName = "nai.ini"
 
@@ -163,6 +164,9 @@ proc write_meshes*(scene: ptr Scene; file: Stream; verbose: bool) =
         for face in to_oa(mesh.faces, mesh.face_count):
             index_count += int face.index_count
 
+        let vert_list = to_seq vertex_flags
+        let vert_size = vert_list.foldl(a + b.size, 0)
+
         if verbose:
             echo &"Mesh '{mesh.name}' (material index: {mesh.material_index}) {vertex_flags}"
             echo &"\t{mesh.vertex_count} vertices of {0}B ({index_count} indices making {mesh.face_count} faces)"
@@ -179,17 +183,24 @@ proc write_meshes*(scene: ptr Scene; file: Stream; verbose: bool) =
             file.write_data(mesh.vertex_count.addr, sizeof header.Vertices.vert_count)
             file.write_data(index_count.addr      , sizeof header.Vertices.index_count)
 
-            # var vertex: Vertex
-            # for (pos, normal, uv) in iter(int mesh.vertex_count, mesh.vertices, mesh.normals, mesh.texture_coords[0]):
-            #     write({Position}             , vertex.pos      , pos)
-            #     write({Normal}               , vertex.normal   , normal)
-            #     write({Tangent}              , vertex.tangent  , tangent)
-            #     write({Bitangent}            , vertex.bitangent, bitangent)
-            #     write({ColourRGBA, ColourRGB}, vertex.colour   , colour)
-            #     write({UV3, UV}              , vertex.uv       , uv) # TODO: need to check if the file actually has these before reading
-            #     file.write_data(vertex.addr, sizeof vertex)
-                # if mesh.vertex_count < 2000:
-                    # echo vertex
+            var vert_mem  = cast[ptr UncheckedArray[uint8]](alloc (vert_size * (int mesh.vertex_count)))
+            for (i, pair) in enumerate [(Position, mesh.vertices),
+                                        (Normal  , mesh.normals),
+                                        (UV      , mesh.texture_coords[0])]: # TODO: deal with other texture_coords
+                let (kind, data) = pair
+                var offset = 0
+                for flag in vertex_flags:
+                    if flag == kind:
+                        break
+                    offset += flag.size
+
+                var p = offset
+                for v in 0 .. mesh.vertex_count:
+                    copy_mem(vert_mem[p].addr, data[v].addr, kind.size)
+                    p += vert_size
+
+            file.write_data(vert_mem, vert_size * (int mesh.vertex_count))
+            dealloc vert_mem
 
             for face in to_oa(mesh.faces, mesh.face_count):
                 for index in to_oa(face.indices, face.index_count):
@@ -252,29 +263,73 @@ proc check_present(val, opt: string): string =
     result = val
 
 proc bool_opt(key, val: string): bool =
+    const truthy = ["true" , "t", "yes", "y", "on", ""]
+    const falsy  = ["false", "f", "no" , "n", "off"]
     case to_lower val
-    of "", "true" , "t", "yes", "y", "on" : true
-    of     "false", "f", "no" , "n", "off": false
+    of truthy: true
+    of falsy : false
     else:
-        echo red &"Invalid value for '{key}'. Expected a boolean value."
+        echo red &"Invalid value for '{key}'. Expected a boolean value:"
+        echo red &"\tTruth-y: {truthy.join \", \"}"
+        echo red &"\tFalse-y: {falsy.join \", \"},"
         quit 1
 
-from std/setutils import full_set
-import std/enumerate
-proc string_of_output_flags(): string =
-    let set_str = $full_set OutputFlag
-    result = "\t"
-    for (i, c) in enumerate set_str:
-        if c == ',':
-            result.add '\n'
-            result.add '\t'
-            continue
-        elif c in [' ', ',', '{', '}']:
-            continue
-        elif (is_upper_ascii c) and (is_alpha_ascii set_str[i - 1]):
-            result.add ": "
+proc parse_config(cfg_file: Path) =
+    proc string_of_output_flags(): string =
+        result = "\t"
+        let set_str = $full_set OutputFlag
+        for (i, c) in enumerate set_str:
+            if c == ',':
+                result.add "\n\t"
+                continue
+            elif c in [' ', ',', '{', '}']:
+                continue
+            elif (is_upper_ascii c) and (is_alpha_ascii set_str[i - 1]):
+                result.add ": "
+            result.add c
 
-        result.add c
+    var path = cfg_file
+    if path == default Path:
+        let cwd_ini_path = ~get_app_dir() / ~ConfigFileName
+        let bin_ini_path = cwd / ~ConfigFileName
+        if file_exists cwd_ini_path:
+            path = cwd_ini_path
+        elif file_exists bin_ini_path:
+            path = bin_ini_path
+        else:
+            echo red "Error: no configuration file specified and could not find 'nai.ini' (use --config/-c to specify)"
+            quit 1
+
+    let config = load_config $path
+    for key in config.keys:
+        template push_flags(section, kind) =
+            for val in config[key].keys:
+                section.incl (parse_enum[kind] val)
+
+        case to_lower key
+        of "vertex" : push_flags(vertex_flags , VertexFlag)
+        of "texture": push_flags(texture_flags, TextureFlag)
+        of "":
+            for (k, v) in pairs config[""]:
+                try: output_flags.incl (parse_enum[OutputFlag] &"{capitalize_ascii k}{capitalize_ascii v}")
+                except ValueError:
+                    echo red &"Error: Invalid output flag '{k}: {v}'"
+                    echo red &"Valid values:\n{string_of_output_flags()})"
+                    quit 1
+        else:
+            echo yellow &"Error: unrecognized configuration section '{key}'"
+            continue
+
+    block validate_flags:
+        proc check(flags: OutputMask): bool =
+            let intersection = flags * output_flags
+            if intersection.len > 1:
+                echo red &"Incompatible flags '{intersection}'"
+                result = true
+
+        if (check {TexturesNone, TexturesInternal, TexturesExternal}) or
+           (check {VerticesNone, VerticesInterleaved, VerticesSeparated}):
+            quit 1
 
 when is_main_module:
     var
@@ -297,7 +352,7 @@ when is_main_module:
             of "input"  , "i":
                 in_file.check_duplicate ~"input"
                 in_file = ~val
-            of "force", "ignore", "f": ignore = true
+            of "force", "ignore", "f": ignore = key.bool_opt val
             else:
                 echo red &"Unrecognized option: '{key}'"
                 quit 1
@@ -314,47 +369,7 @@ when is_main_module:
     if out_file == cwd:
         out_file = cwd / extract_filename in_file
 
-    if cfg_file == default Path:
-        let cwd_ini_path = ~get_app_dir() / ~ConfigFileName
-        let bin_ini_path = cwd / ~ConfigFileName
-        if file_exists cwd_ini_path:
-            cfg_file = cwd_ini_path
-        elif file_exists bin_ini_path:
-            cfg_file = bin_ini_path
-        else:
-            echo red "Error: no configuration file specified and could not find 'nai.ini' (use --config/-c to specify)"
-            quit 1
-
-    let config = load_config $cfg_file
-    for key in config.keys:
-        template push_flags(section, kind) =
-            for val in config[key].keys:
-                section.incl (parse_enum[kind] val)
-
-        case to_lower key
-        of "vertex" : push_flags(vertex_flags , VertexFlag)
-        of "texture": push_flags(texture_flags, TextureFlag)
-        of "":
-            for (k, v) in pairs config[""]:
-                try:
-                    let en = parse_enum[OutputFlag] &"{capitalize_ascii k}{capitalize_ascii v}"
-                    output_flags.incl en
-                except ValueError:
-                    echo red &"Error: Invalid output flag '{k}: {v}' \nValid values:\n{string_of_output_flags()})"
-                    quit 1
-        else:
-            echo yellow &"Error: unrecognized configuration section '{key}'"
-            continue
-
-    proc check_incompatible(flags: OutputMask): bool =
-        let intersection = flags * output_flags
-        if intersection.len > 1:
-            echo red &"Incompatible flags '{intersection}'"
-            result = true
-
-    if (check_incompatible {TexturesNone, TexturesInternal, TexturesExternal}) or
-       (check_incompatible {VerticesNone, VerticesInterleaved, VerticesSeparated}):
-        quit 1
+    parse_config cfg_file
 
     var scene = import_file($in_file, GenBoundingBoxes)
     if verbose:
@@ -371,10 +386,10 @@ when is_main_module:
         echo red &"Error: File '{in_file}' contains unsupported components (use -f/--force/--ignore to continue regardless)"
         quit 1
 
-        var file = open_file_stream($out_file, fmWrite)
-        write_header(scene, file)
-        write_meshes(scene, file, verbose)
-        write_textures(scene, file, verbose)
-        close file
+    var file = open_file_stream($out_file, fmWrite)
+    write_header(scene, file)
+    write_meshes(scene, file, verbose)
+    write_textures(scene, file, verbose)
+    close file
 
-        free_scene scene
+    free_scene scene
