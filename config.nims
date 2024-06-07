@@ -1,15 +1,17 @@
 import std/[strformat, strutils, sequtils]
 
 const
-    Bin = "naic"
+    Bin = to_exe "naic"
 
-    SrcDir   = "./src"
-    BuildDir = "./build"
-    LibDir   = "./lib"
-    TestDir  = "./tests"
+    SrcDir  = "./src"
+    LibDir  = "./lib"
+    TestDir = "./tests"
 
-    AssimpFlags = "-DASSIMP_INSTALL=OFF -DASSIMP_BUILD_TESTS=OFF " &
-                  "-DASSIMP_BUILD_ALL_EXPORTERS_BY_DEFAULT=OFF -DASSIMP_INSTALL_PDB=OFF"
+    LinkerFlags = &"\"{LibDir}/libassimp.a {LibDir}/libzlibstatic.a\""
+    AssimpFlags = "-DASSIMP_INSTALL=OFF -DASSIMP_BUILD_TESTS=OFF -DUSE_STATIC_CRT=ON -DBUILD_SHARED_LIBS=OFF " &
+                  "-DASSIMP_BUILD_ALL_EXPORTERS_BY_DEFAULT=OFF -DASSIMP_INSTALL_PDB=OFF -DASSIMP_BUILD_ZLIB=ON"
+
+--nimCache:"./build"
 
 func basename(path: string; with_ext = false): string =
     let start = (path.rfind '/') + 1
@@ -20,14 +22,14 @@ func basename(path: string; with_ext = false): string =
         result = path[start..<stop]
 
 task build, "Build Nai~":
-    exec &"nim c --nimCache:{BuildDir} -o:{Bin} {SrcDir}/nai.nim"
+    self_exec &"cpp --passL:{LinkerFlags} -o:{Bin} {SrcDir}/nai.nim"
 
 task build_libs, "Build libraries":
     # Assimp
     with_dir &"{LibDir}/assimp":
-        exec &"cmake -B . -S . {AssimpFlags} -DCMAKE_BUILD_TYPE=release"
-        exec &"cmake --build . -j8"
-    exec &"cp {LibDir}/assimp/bin/*.so* {LibDir}/"
+        exec &"cmake -B . -S . {AssimpFlags}"
+        exec &"cmake --build . --config release -j8"
+    exec &"cp {LibDir}/assimp/lib/*.a {LibDir}/"
 
 task restore, "Fetch and build dependencies":
     exec "git submodule update --init --remote --merge --recursive -j 8"

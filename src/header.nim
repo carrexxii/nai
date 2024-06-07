@@ -11,6 +11,8 @@ type
         TexturesNone
         TexturesInternal
         TexturesExternal
+
+        A, B, C, D, E, F, G, H, I, J # https://github.com/nim-lang/Nim/issues/23692
     OutputMask* {.size: sizeof(uint16).} = set[OutputFlag]
 
     VertexFlag* = enum
@@ -22,6 +24,8 @@ type
         ColourRGB
         UV
         UV3
+
+        A, B, C, D, E, F, G, H, # https://github.com/nim-lang/Nim/issues/23692
     VertexMask* {.size: sizeof(uint16).} = set[VertexFlag]
 
     TextureFlag* = enum

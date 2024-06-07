@@ -99,5 +99,5 @@ type
         scaling    : Vec2
         rotation   : Real
 
-proc texture_kind_to_string*(kind: TextureKind): cstring {.importc: "aiTextureTypeToString", dynlib: AIPath.}
+proc texture_kind_to_string*(kind: TextureKind): cstring {.importc: "aiTextureTypeToString".}
 proc `$`*(kind: TextureKind): string = $(texture_kind_to_string kind)

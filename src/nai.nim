@@ -80,20 +80,17 @@ type Scene* = object
 # TODO: variable index size with an 'auto` option that detects size needed
 # TODO: import_file interface for memory load
 #       property imports
-# proc import_file*(buffer: ptr byte; length: uint32; flags: uint32; hint: cstring): ptr Scene {.importc: "aiImportFileFromMemory", dynlib: AIPath.}
-{.push dynlib: AIPath.}
 proc get_error*(): cstring                                     {.importc: "aiGetErrorString"      .}
 proc is_extension_supported*(ext: cstring): bool               {.importc: "aiIsExtensionSupported".}
 proc get_extension_list(lst: ptr AIString)                     {.importc: "aiGetExtensionList"    .}
 proc import_file(path: cstring; flags: uint32): ptr Scene      {.importc: "aiImportFile"          .}
 proc process*(scene: ptr Scene; flags: ProcessFlag): ptr Scene {.importc: "aiApplyPostProcessing" .}
 proc free_scene*(scene: ptr Scene)                             {.importc: "aiReleaseImport"       .}
-{.pop.}
 
 proc import_file*(path: string; flags: ProcessFlag): ptr Scene =
     result = import_file(path.cstring, flags.uint32)
     if result == nil:
-        echo &"Error: failed to load '{path}'"
+        error &"Error: failed to load '{path}'"
         quit 1
 
 proc get_extension_list*(): seq[string] =
@@ -117,33 +114,31 @@ proc write_header*(scene: ptr Scene; file: Stream) =
     file.write_data(header.addr, sizeof header)
 
 proc validate*(scene: ptr Scene; output_errs: bool): int =
-    proc error(msg: string)   = echo red    &"Error: {msg}"
-    proc warning(msg: string) = echo yellow &"Warning: {msg}"
+    proc check(val: uint; name: string): int =
+        result = if val != 0: 1 else: 0
+        if val != 0 and output_errs:
+            discard
+            warning &"scene contains {val} {name} which are not supported"
 
-    block ImplementationCheck:
-        proc check(val: uint; name: string): int =
-            result = if val != 0: 1 else: 0
-            if val != 0 and output_errs:
-                warning &"scene contains {val} {name} which are not supported"
+    result =
+        check(scene.texture_count  , "textures")   +
+        check(scene.material_count , "materials")  +
+        check(scene.animation_count, "animations") +
+        check(scene.skeleton_count , "skeletons")  +
+        check(scene.light_count    , "lights")     +
+        check(scene.camera_count   , "cameras")
 
-        result =
-            check(scene.texture_count  , "textures")   +
-            check(scene.material_count , "materials")  +
-            check(scene.animation_count, "animations") +
-            check(scene.skeleton_count , "skeletons")  +
-            check(scene.light_count    , "lights")     +
-            check(scene.camera_count   , "cameras")
-
-    # TODO: continue prompt
-    if scene.texture_count > 0 and not (TexturesNone in output_flags):
-        error &"File has {scene.texture_count} textures but '{TexturesNone}' was not specified"
+    let texture_flags = {TexturesNone, TexturesInternal, TexturesExternal}
+    if scene.texture_count > 0 and output_flags * texture_flags != {}:
+        error &"File has {scene.texture_count} textures but no texture flags were specified"
+        inc result
 
 #[ -------------------------------------------------------------------- ]#
 
 converter vec3_to_vec2(v: Vec3): Vec2 = Vec2(x: v.x, y: v.y)
 
 template to_oa(arr, c): untyped =
-    to_open_array(arr, 0, int (c - 1))
+    to_open_array(arr, 0, int c - 1)
 
 proc write_meshes*(scene: ptr Scene; file: Stream; verbose: bool) =
     template write(flags: VertexMask; dst, src) =
@@ -168,15 +163,15 @@ proc write_meshes*(scene: ptr Scene; file: Stream; verbose: bool) =
         let vert_size = vert_list.foldl(a + b.size, 0)
 
         if verbose:
-            echo &"Mesh '{mesh.name}' (material index: {mesh.material_index}) {vertex_flags}"
-            echo &"\t{mesh.vertex_count} vertices of {0}B ({index_count} indices making {mesh.face_count} faces)"
-            echo &"\tUV components -> {mesh.uv_component_count}"
-            echo &"\t{mesh.bone_count} bones"
-            echo &"\t{mesh.anim_mesh_count} animation meshes (morphing method: {mesh.morph_method})"
-            echo &"\tAABB: {mesh.aabb}"
+            info &"Mesh '{mesh.name}' (material index: {mesh.material_index}) {vertex_flags}"
+            info &"    {mesh.vertex_count} vertices of {0}B ({index_count} indices making {mesh.face_count} faces)"
+            info &"    UV components: {mesh.uv_component_count}"
+            info &"    {mesh.bone_count} bones"
+            info &"    {mesh.anim_mesh_count} animation meshes (morphing method: {mesh.morph_method})"
+            info &"    AABB: {mesh.aabb}"
 
         if mesh.primitive_kinds != PrimitiveTriangle:
-            echo "Error: mesh contains non-triangle primitives"
+            error "Error: mesh contains non-triangle primitives"
             return
 
         if VerticesInterleaved in output_flags:
@@ -215,12 +210,12 @@ proc write_textures*(scene: ptr Scene; file: Stream; verbose: bool) =
         var fmt_hint = new_string MaxTextureHintLen
         copy_mem(fmt_hint[0].addr, texture.format_hint[0].addr, MaxTextureHintLen)
         if verbose:
-            echo &"Texture '{texture.filename}' ({texture.width}x{texture.height}):"
-            echo &"\tFormat hint      -> {fmt_hint}"
-            echo &"\tData is internal -> {texture.data != nil}"
+            info &"Texture '{texture.filename}' ({texture.width}x{texture.height}):"
+            info &"\tFormat hint      -> {fmt_hint}"
+            info &"\tData is internal -> {texture.data != nil}"
 
         if TexturesExternal in output_flags:
-            var file = open_file_stream("" & fmt_hint, fmWrite)
+            var file = open_file_stream(fmt_hint, fmWrite)
             defer: close file
 
             file.write_data(texture.data[0].addr, int texture.width)
@@ -233,32 +228,32 @@ func `~`(path: string): Path =
     Path path
 
 proc write_help() =
-    echo "Usage:"
-    echo "    naic file [options]\n"
+    info "Usage:"
+    info "    naic file [options]\n"
 
-    echo "Options: (opt:VAL or opt=VAL)"
-    echo "    -i, --input:PATH        Explicitly define an input file"
-    echo "    -o, --output:PATH       Define the output path (defaults to current directory)"
-    echo "    -c, --config:FILE       Specify a configuration file (defaults to nai.ini)"
-    echo "    -f, --force             Ignore warnings for unsupported components"
-    echo "    -v, --verbose           Output extra information about the file being compiled"
-    echo "    -q, --quiet             Don't output warnings"
-    echo ""
-    echo "    --ignore    Alias for --force"
+    info "Options: (opt:VAL or opt=VAL)"
+    info "    -i, --input:PATH        Explicitly define an input file"
+    info "    -o, --output:PATH       Define the output path (defaults to current directory)"
+    info "    -c, --config:FILE       Specify a configuration file (defaults to nai.ini)"
+    info "    -f, --force             Ignore warnings for unsupported components"
+    info "    -v, --verbose           Output extra information about the file being compiled"
+    info "    -q, --quiet             Don't output warnings"
+    info ""
+    info "    --ignore    Alias for --force"
 
-    echo "\nSupported formats:"
-    echo &"""{foldl(get_extension_list(), a & " " & b, "    ")}"""
+    info "\nSupported formats:"
+    info &"""{foldl(get_extension_list(), a & " " & b, "    ")}"""
 
     quit 0
 
 proc check_duplicate(val, kind: string | Path) =
     if val != default (typeof val):
-        echo red &"Error: duplicate inputs provided for '{kind}'"
+        error &"Error: duplicate inputs provided for '{kind}'"
         quit 1
 
 proc check_present(val, opt: string): string =
     if val == "":
-        echo red &"No value provided for '{opt}'"
+        error &"No value provided for '{opt}'"
         quit 1
     result = val
 
@@ -269,15 +264,15 @@ proc bool_opt(key, val: string): bool =
     of truthy: true
     of falsy : false
     else:
-        echo red &"Invalid value for '{key}'. Expected a boolean value:"
-        echo red &"\tTruth-y: {truthy.join \", \"}"
-        echo red &"\tFalse-y: {falsy.join \", \"},"
+        error &"Invalid value for '{key}'. Expected a boolean value:"
+        error &"\tTruth-y: {truthy.join \", \"}"
+        error &"\tFalse-y: {falsy.join \", \"},"
         quit 1
 
 proc parse_config(cfg_file: Path) =
-    proc string_of_output_flags(): string =
+    func string_of_output_flags(): string {.compileTime.} =
         result = "\t"
-        let set_str = $full_set OutputFlag
+        const set_str = $(full_set OutputFlag)
         for (i, c) in enumerate set_str:
             if c == ',':
                 result.add "\n\t"
@@ -297,7 +292,7 @@ proc parse_config(cfg_file: Path) =
         elif file_exists bin_ini_path:
             path = bin_ini_path
         else:
-            echo red "Error: no configuration file specified and could not find 'nai.ini' (use --config/-c to specify)"
+            error "Error: no configuration file specified and could not find 'nai.ini' (use --config/-c to specify)"
             quit 1
 
     let config = load_config $path
@@ -313,18 +308,18 @@ proc parse_config(cfg_file: Path) =
             for (k, v) in pairs config[""]:
                 try: output_flags.incl (parse_enum[OutputFlag] &"{capitalize_ascii k}{capitalize_ascii v}")
                 except ValueError:
-                    echo red &"Error: Invalid output flag '{k}: {v}'"
-                    echo red &"Valid values:\n{string_of_output_flags()})"
+                    error &"Error: Invalid output flag '{k}: {v}'"
+                    error &"Valid values:\n{string_of_output_flags()})"
                     quit 1
         else:
-            echo yellow &"Error: unrecognized configuration section '{key}'"
+            warning &"Error: unrecognized configuration section '{key}'"
             continue
 
     block validate_flags:
         proc check(flags: OutputMask): bool =
             let intersection = flags * output_flags
             if intersection.len > 1:
-                echo red &"Incompatible flags '{intersection}'"
+                error &"Incompatible flags '{intersection}'"
                 result = true
 
         if (check {TexturesNone, TexturesInternal, TexturesExternal}) or
@@ -354,7 +349,7 @@ when is_main_module:
                 in_file = ~val
             of "force", "ignore", "f": ignore = key.bool_opt val
             else:
-                echo red &"Unrecognized option: '{key}'"
+                error &"Unrecognized option: '{key}'"
                 quit 1
         of cmdArgument:
             in_file.check_duplicate "input"
@@ -363,7 +358,7 @@ when is_main_module:
             discard
 
     if in_file == ~"":
-        echo red "Error: no input file provided"
+        error "Error: no input file provided"
         write_help()
 
     if out_file == cwd:
@@ -373,17 +368,17 @@ when is_main_module:
 
     var scene = import_file($in_file, GenBoundingBoxes)
     if verbose:
-        echo &"Scene '{scene.name}' ('{in_file}' -> '{out_file}')"
-        echo &"\tMeshes     -> {scene.mesh_count}"
-        echo &"\tMaterials  -> {scene.material_count}"
-        echo &"\tAnimations -> {scene.animation_count}"
-        echo &"\tTextures   -> {scene.texture_count}"
-        echo &"\tLights     -> {scene.light_count}"
-        echo &"\tCameras    -> {scene.camera_count}"
-        echo &"\tSkeletons  -> {scene.skeleton_count}"
+        info &"Scene '{scene.name}' ('{in_file}' -> '{out_file}')"
+        info &"\tMeshes     -> {scene.mesh_count}"
+        info &"\tMaterials  -> {scene.material_count}"
+        info &"\tAnimations -> {scene.animation_count}"
+        info &"\tTextures   -> {scene.texture_count}"
+        info &"\tLights     -> {scene.light_count}"
+        info &"\tCameras    -> {scene.camera_count}"
+        info &"\tSkeletons  -> {scene.skeleton_count}"
 
     if validate(scene, not quiet) != 0 and not ignore:
-        echo red &"Error: File '{in_file}' contains unsupported components (use -f/--force/--ignore to continue regardless)"
+        error &"Error: File '{in_file}' contains unsupported components (use -f/--force/--ignore to continue regardless)"
         quit 1
 
     var file = open_file_stream($out_file, fmWrite)

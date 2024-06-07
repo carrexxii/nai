@@ -4,9 +4,6 @@ export sugar, `&`
 
 const NoArmaturePopulateProcess* = true
 
-from std/os import parent_dir
-const AIPath* = current_source_path().parent_dir.parent_dir & "/lib/libassimp.so"
-
 const
     MaxAIStringLen*   = 1024
     MaxColourSets*    = 0x8
@@ -99,3 +96,7 @@ proc yellow* (s: string): string = "\e[33m" & s & "\e[0m"
 proc blue*   (s: string): string = "\e[34m" & s & "\e[0m"
 proc magenta*(s: string): string = "\e[35m" & s & "\e[0m"
 proc cyan*   (s: string): string = "\e[36m" & s & "\e[0m"
+
+proc info*(msg: string)    = echo        &"{msg}"
+proc error*(msg: string)   = echo red    &"Error: {msg}"
+proc warning*(msg: string) = echo yellow &"Warning: {msg}"
