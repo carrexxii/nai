@@ -55,6 +55,10 @@ type
         verts*: ptr UncheckedArray[float32] # offset: 8
         inds* : ptr UncheckedArray[uint32]  # offset: 8 + vert_count*sizeof(Vertex)
 
+    Materials* = object
+        count*: uint16
+        mtls* : ptr UncheckedArray[byte]
+
 proc `$`*(header: Header): string =
     let valid_msg = if header.magic == NAIMagic: "valid" else: "invalid"
     &"Nai object header:\n"                                  &

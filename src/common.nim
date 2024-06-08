@@ -9,6 +9,11 @@ const
     MaxColourSets*    = 0x8
     MaxTextureCoords* = 0x8
 
+type AIReturn* {.size: sizeof(cint).} = enum
+    Success     =  0x0
+    Failure     = -0x1
+    OutOfMemory = -0x3
+
 type PrimitiveFlag* = distinct uint32
 func `or`*(a, b: PrimitiveFlag): PrimitiveFlag {.borrow.}
 func `==`*(a, b: PrimitiveFlag): bool          {.borrow.}

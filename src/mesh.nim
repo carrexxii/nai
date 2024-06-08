@@ -1,6 +1,4 @@
-import
-    std/macros,
-    common, header
+import common, header
 
 type
     Mesh* = object

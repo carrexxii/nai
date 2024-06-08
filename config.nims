@@ -30,6 +30,7 @@ task build_libs, "Build libraries":
         exec &"cmake -B . -S . {AssimpFlags}"
         exec &"cmake --build . --config release -j8"
     exec &"cp {LibDir}/assimp/lib/*.a {LibDir}/"
+    exec &"cp {LibDir}/assimp/contrib/zlib/*.a {LibDir}/"
 
 task restore, "Fetch and build dependencies":
     exec "git submodule update --init --remote --merge --recursive -j 8"
