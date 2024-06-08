@@ -9,7 +9,7 @@ from std/setutils import full_set
 const ConfigFileName = "nai.ini"
 
 type
-    ProcessFlag* {.size: sizeof(cint).} = enum
+    ProcessFlag {.size: sizeof(cuint).} = enum
         CalcTangentSpace         = 0x0000_0001
         JoinIdenticalVertices    = 0x0000_0002
         MakeLeftHanded           = 0x0000_0004
@@ -43,7 +43,7 @@ type
         DropNormals              = 0x4000_0000
         GenBoundingBoxes         = 0x8000_0000
 
-    SceneFlag* {.size: sizeof(cint)} = enum
+    SceneFlag {.size: sizeof(cuint)} = enum
         Incomplete        = 0x0000_0001
         Validated         = 0x0000_0002
         ValidationWarning = 0x0000_0004
@@ -51,55 +51,59 @@ type
         Terrain           = 0x0000_0010
         AllowShared       = 0x0000_0020
 
-func `or`*(a, b: ProcessFlag): ProcessFlag = ProcessFlag ((cint a) or (cint b))
-func `or`*(a, b: SceneFlag)  : SceneFlag   = SceneFlag ((cint a) or (cint b))
+# Cast to avoid buggy bounds checking
+# https://github.com/nim-lang/Nim/issues/20024
+template `or`(a, b: ProcessFlag): ProcessFlag =
+    cast[ProcessFlag]((cuint a) or (cuint b))
+    #ProcessFlag ((cuint a) or (cuint b))
+template `or`(a, b: SceneFlag): SceneFlag =
+    SceneFlag ((cuint a) or (cuint b))
 
-type Scene* = object
-    flags*          : SceneFlag
-    root_node*      : ptr Node
-    mesh_count*     : uint32
-    meshes*         : ptr UncheckedArray[ptr Mesh]
-    material_count* : uint32
-    materials*      : ptr UncheckedArray[ptr Material]
-    animation_count*: uint32
-    animations*     : ptr UncheckedArray[ptr Animation]
-    texture_count*  : uint32
-    textures*       : ptr UncheckedArray[ptr Texture]
-    light_count*    : uint32
-    lights*         : ptr UncheckedArray[ptr Light]
-    camera_count*   : uint32
-    cameras*        : ptr UncheckedArray[ptr Camera]
-    meta_data*      : ptr MetaData
-    name*           : AIString
-    skeleton_count* : uint32
-    skeletons*      : ptr UncheckedArray[ptr Skeleton]
-    private         : pointer
+type Scene = object
+    flags          : SceneFlag
+    root_node      : ptr Node
+    mesh_count     : uint32
+    meshes         : ptr UncheckedArray[ptr Mesh]
+    material_count : uint32
+    materials      : ptr UncheckedArray[ptr Material]
+    animation_count: uint32
+    animations     : ptr UncheckedArray[ptr Animation]
+    texture_count  : uint32
+    textures       : ptr UncheckedArray[ptr Texture]
+    light_count    : uint32
+    lights         : ptr UncheckedArray[ptr Light]
+    camera_count   : uint32
+    cameras        : ptr UncheckedArray[ptr Camera]
+    meta_data      : ptr MetaData
+    name           : AIString
+    skeleton_count : uint32
+    skeletons      : ptr UncheckedArray[ptr Skeleton]
+    private        : pointer
 
 #[ -------------------------------------------------------------------- ]#
 
 # TODO: variable index size with an 'auto` option that detects size needed
 # TODO: import_file interface for memory load
 #       property imports
-proc get_error*(): cstring                                     {.importc: "aiGetErrorString"      .}
-proc is_extension_supported*(ext: cstring): bool               {.importc: "aiIsExtensionSupported".}
-proc get_extension_list(lst: ptr AIString)                     {.importc: "aiGetExtensionList"    .}
-proc import_file(path: cstring; flags: uint32): ptr Scene      {.importc: "aiImportFile"          .}
-proc process*(scene: ptr Scene; flags: ProcessFlag): ptr Scene {.importc: "aiApplyPostProcessing" .}
-proc free_scene*(scene: ptr Scene)                             {.importc: "aiReleaseImport"       .}
+proc is_extension_supported(ext: cstring): bool               {.importc: "aiIsExtensionSupported".}
+proc get_extension_list(lst: ptr AIString)                    {.importc: "aiGetExtensionList"    .}
+proc import_file(path: cstring; flags: uint32): ptr Scene     {.importc: "aiImportFile"          .}
+proc process(scene: ptr Scene; flags: ProcessFlag): ptr Scene {.importc: "aiApplyPostProcessing" .}
+proc free_scene(scene: ptr Scene)                             {.importc: "aiReleaseImport"       .}
 
-proc import_file*(path: string; flags: ProcessFlag): ptr Scene =
+proc import_file(path: string; flags: ProcessFlag): ptr Scene =
     result = import_file(path.cstring, flags.uint32)
     if result == nil:
         error &"Error: failed to load '{path}'"
         quit 1
 
-proc get_extension_list*(): seq[string] =
+proc get_extension_list(): seq[string] =
     var lst: AIString
     get_extension_list lst.addr
     result = split($lst, ';')
 
 # TODO: ensure flags don't overlap/have invalid pairs
-proc write_header*(scene: ptr Scene; file: Stream) =
+proc write_header(scene: ptr Scene; file: Stream) =
     var header = Header(
         magic          : [78, 65, 73, 126],
         version        : [0, 0],
@@ -113,7 +117,7 @@ proc write_header*(scene: ptr Scene; file: Stream) =
     )
     file.write_data(header.addr, sizeof header)
 
-proc validate*(scene: ptr Scene; output_errs: bool): int =
+proc validate(scene: ptr Scene; output_errs: bool): int =
     proc check(val: uint; name: string): int =
         result = if val != 0: 1 else: 0
         if val != 0 and output_errs:
@@ -137,10 +141,7 @@ proc validate*(scene: ptr Scene; output_errs: bool): int =
 
 converter vec3_to_vec2(v: Vec3): Vec2 = Vec2(x: v.x, y: v.y)
 
-template to_oa(arr, c): untyped =
-    to_open_array(arr, 0, int c - 1)
-
-proc write_meshes*(scene: ptr Scene; file: Stream; verbose: bool) =
+proc write_meshes(scene: ptr Scene; file: Stream; verbose: bool) =
     template write(flags: VertexMask; dst, src) =
         when flags * vertex_flags != {}:
             dst = src
@@ -205,20 +206,24 @@ proc write_meshes*(scene: ptr Scene; file: Stream; verbose: bool) =
         elif VerticesSeparated in output_flags:
             assert false
 
-proc write_textures*(scene: ptr Scene; file: Stream; verbose: bool) =
+proc write_materials(scene: ptr Scene; file: Stream; verbose: bool) =
+    for mtl in to_oa(scene.materials, scene.material_count):
+        if verbose:
+            echo $mtl[]
+
+proc write_textures(scene: ptr Scene; file: Stream; verbose: bool) =
     for texture in to_oa(scene.textures, scene.texture_count):
+        if verbose:
+            echo $texture[]
+
         var fmt_hint = new_string MaxTextureHintLen
         copy_mem(fmt_hint[0].addr, texture.format_hint[0].addr, MaxTextureHintLen)
-        if verbose:
-            info &"Texture '{texture.filename}' ({texture.width}x{texture.height}):"
-            info &"\tFormat hint      -> {fmt_hint}"
-            info &"\tData is internal -> {texture.data != nil}"
-
         if TexturesExternal in output_flags:
             var file = open_file_stream(fmt_hint, fmWrite)
-            defer: close file
-
             file.write_data(texture.data[0].addr, int texture.width)
+            close file
+
+    quit 0
 
 #[ -------------------------------------------------------------------- ]#
 
@@ -366,7 +371,7 @@ when is_main_module:
 
     parse_config cfg_file
 
-    var scene = import_file($in_file, GenBoundingBoxes)
+    var scene = import_file($in_file, GenBoundingBoxes or RemoveRedundantMaterials)
     if verbose:
         info &"Scene '{scene.name}' ('{in_file}' -> '{out_file}')"
         info &"\tMeshes     -> {scene.mesh_count}"
@@ -384,6 +389,7 @@ when is_main_module:
     var file = open_file_stream($out_file, fmWrite)
     write_header(scene, file)
     write_meshes(scene, file, verbose)
+    write_materials(scene, file, verbose)
     write_textures(scene, file, verbose)
     close file
 

@@ -1,4 +1,5 @@
 import common
+from std/strutils import to_lower_ascii
 
 type
     TextureOp* {.size: sizeof(cint).} = enum
@@ -23,7 +24,7 @@ type
         Plane
         Other
 
-    TextureKind* {.size: sizeof(cint).} = enum
+    TextureKind* {.size: sizeof(cuint).} = enum
         None
         Diffuse
         Specular
@@ -76,7 +77,7 @@ type
         UseAlpha    = 0x2
         IgnoreAlpha = 0x4
 
-    Matkey* = enum
+    Matkey* {.size: sizeof(cstring).} = enum
         Name                      = "?mat.name"
         TwoSided                  = "$mat.twosided"
         ShadingModel              = "$mat.shadingm"
@@ -147,13 +148,13 @@ type
 
 type
     Material* = object
-        properties      : ptr UncheckedArray[ptr MaterialProperty]
-        properties_count: uint32
-        allocated_count : uint32
+        properties*      : ptr UncheckedArray[ptr MaterialProperty]
+        properties_count*: uint32
+        allocated_count* : uint32
 
     MaterialProperty* = object
         key        : AIString
-        semantic   : uint32
+        tex_kind   : TextureKind # "semantic"
         index      : uint32
         data_length: uint32
         kind       : PropertyKindInfo
@@ -172,41 +173,50 @@ const
 template `or`(a, b: TextureFlag): TextureFlag {.warning[HoleEnumConv]: off.} =
     TextureFlag ((cint a) or (cint b))
 
+func `$`(prop: MaterialProperty): string =
+    let key = green &"\"{prop.key}\""
+    result = &"Material property ({key}) of kind {prop.kind}: "
+    result &= &"index {prop.index}; data_length {prop.data_length}"
+    if prop.tex_kind != None:
+        result &= cyan &" ({to_lower_ascii $prop.tex_kind} texture)"
+
 #[ -------------------------------------------------------------------- ]#
 
 using
     pmtl    : ptr Material
     key     : cstring
-    prop_out: ptr UncheckedArray[ptr MaterialProperty]
+    prop_out: ptr ptr MaterialProperty
     real_out: ptr UncheckedArray[Real]
     uint_out: ptr UncheckedArray[cuint]
 
-proc texture_type_to_string*(kind: TextureKind): cstring                                             {.importc: "aiTextureTypeToString"    .}
-proc get_material_property(pmtl; key; kind, index: cuint; prop_out): AIReturn                        {.importc: "aiGetMaterialProperty"    .}
-proc get_material_float_array(pmtl; key; kind, index: cuint; real_out; count: ptr cuint): AIReturn   {.importc: "aiGetMaterialFloatArray"  .}
-proc get_material_float(pmtl; key; kind, index: cuint; real_out): AIReturn                           {.importc: "aiGetMaterialFloat"       .}
-proc get_material_integer_array(pmtl; key; kind, index: cuint; uint_out; count: ptr cuint): AIReturn {.importc: "aiGetMaterialIntegerArray".}
-proc get_material_integer(pmtl; key; kind, index: cuint; uint_out): AIReturn                         {.importc: "aiGetMaterialInteger"     .}
-proc get_material_color(pmtl; key; kind, index: cuint; colour_out: ptr Colour): AIReturn             {.importc: "aiGetMaterialColor"       .}
-proc get_material_uv_transform(pmtl; key; kind, index: cuint; trans_out: ptr UVTransform): AIReturn  {.importc: "aiGetMaterialUVTransform" .}
-proc get_material_string(pmtl; key; kind, index: cuint; str_out: ptr AIString): AIReturn             {.importc: "aiGetMaterialString"      .}
-proc get_material_texture_count(pmtl; kind: TextureKind): cuint                                      {.importc: "aiGetMaterialTextureCount".}
-proc get_material_texture(pmtl; kind: TextureKind; index: cuint; path: ptr AIString;
-                          mapping: ptr TextureMapping = nil; uv_index: ptr cuint = nil; blend: ptr Real = nil;
-                          op: ptr TextureOp = nil; map_mode: ptr TextureMapMode = nil; flags: ptr TextureFlag = nil):
-                          AIReturn {.importc: "aiGetMaterialTexture".}
+proc texture_type_to_string*(kind: TextureKind): cstring                                              {.importc: "aiTextureTypeToString"    .}
+proc get_material_property*(pmtl; key; kind, index: cuint; prop_out): AIReturn                        {.importc: "aiGetMaterialProperty"    .}
+proc get_material_float_array*(pmtl; key; kind, index: cuint; real_out; count: ptr cuint): AIReturn   {.importc: "aiGetMaterialFloatArray"  .}
+proc get_material_float*(pmtl; key; kind, index: cuint; real_out): AIReturn                           {.importc: "aiGetMaterialFloat"       .}
+proc get_material_integer_array*(pmtl; key; kind, index: cuint; uint_out; count: ptr cuint): AIReturn {.importc: "aiGetMaterialIntegerArray".}
+proc get_material_integer*(pmtl; key; kind, index: cuint; uint_out): AIReturn                         {.importc: "aiGetMaterialInteger"     .}
+proc get_material_color*(pmtl; key; kind, index: cuint; colour_out: ptr Colour): AIReturn             {.importc: "aiGetMaterialColor"       .}
+proc get_material_uv_transform*(pmtl; key; kind, index: cuint; trans_out: ptr UVTransform): AIReturn  {.importc: "aiGetMaterialUVTransform" .}
+proc get_material_string*(pmtl; key; kind, index: cuint; str_out: ptr AIString): AIReturn             {.importc: "aiGetMaterialString"      .}
+proc get_material_texture_count*(pmtl; kind: TextureKind): cuint                                      {.importc: "aiGetMaterialTextureCount".}
+proc get_material_texture*(pmtl; kind: TextureKind; index: cuint; path: ptr AIString;
+                           mapping: ptr TextureMapping = nil; uv_index: ptr cuint = nil; blend: ptr Real = nil;
+                           op: ptr TextureOp = nil; map_mode: ptr TextureMapMode = nil; flags: ptr TextureFlag = nil):
+                           AIReturn {.importc: "aiGetMaterialTexture".}
 
 #[ -------------------------------------------------------------------- ]#
 
 template `$`*(kind: TextureKind): string =
     $(texture_type_to_string kind)
 
-template matkey_texture(kind: TextureKind; n: int): auto = (Texture, kind, n)
-template matkey_uvw_src(kind: TextureKind; n: int): auto = (UVWSrc , kind, n)
-template matkey_tex_op (kind: TextureKind; n: int): auto = (TexOp  , kind, n)
+proc `$`*(mtl: Material): string =
+    var prop: array[Matkey, ptr MaterialProperty]
+    result = &"Material ({mtl.allocated_count}B allocated for {mtl.properties_count} properties)\n"
+    for key in Matkey:
+        if get_material_property(mtl.addr, $key, 0, 0, prop[key].addr) == Success:
+            result &= cyan &"    {key}\n"
 
 template gen_matkey_set(name; base_kind: Matkey) =
-    static: assert (int base_kind) >= (int TextureBase)
     template `matkey name`(kind: TextureKind; n: int): auto = (base_kind, kind, n)
     template `matkey name diffuse`*     (n: int): auto = `matkey name`(Diffuse     , n)
     template `matkey name specular`*    (n: int): auto = `matkey name`(Specular    , n)

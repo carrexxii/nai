@@ -1,6 +1,6 @@
-import std/sugar
+import std/[sugar, enumerate]
 from std/strformat import `&`
-export sugar, `&`
+export sugar, enumerate, `&`
 
 const NoArmaturePopulateProcess* = true
 
@@ -93,6 +93,8 @@ func `$`*(aabb: AABB): string =
     let min = aabb.min
     result = &"[max({max.x:.2f}, {max.y:.2f}, {max.z:.2f}) -> min({min.x:.2f}, {min.y:.2f}, {min.z:.2f})]"
 
+proc get_assimp_error*(): cstring {.importc: "aiGetErrorString".}
+
 #[ -------------------------------------------------------------------- ]#
 
 proc red*    (s: string): string = "\e[31m" & s & "\e[0m"
@@ -105,3 +107,6 @@ proc cyan*   (s: string): string = "\e[36m" & s & "\e[0m"
 proc info*(msg: string)    = echo        &"{msg}"
 proc error*(msg: string)   = echo red    &"Error: {msg}"
 proc warning*(msg: string) = echo yellow &"Warning: {msg}"
+
+template to_oa*(arr, c): untyped =
+    to_open_array(arr, 0, int c - 1)

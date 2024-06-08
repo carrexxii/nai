@@ -2,5 +2,6 @@ build/
 tests/
 *.so*
 *.a
+*.h
 nai.ini
 naic
