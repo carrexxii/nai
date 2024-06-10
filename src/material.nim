@@ -73,6 +73,7 @@ type
         Buffer
 
     TextureFlag {.size: sizeof(cint).} = enum
+        None        = 0x0
         Invert      = 0x1
         UseAlpha    = 0x2
         IgnoreAlpha = 0x4
@@ -165,6 +166,16 @@ type
         scaling    : Vec2
         rotation   : Real
 
+    TextureData* = object
+        kind*        : TextureKind
+        path*        : string
+        mapping*     : TextureMapping
+        uv_index*    : int
+        blend_factor*: Real
+        texture_op*  : TextureOp
+        map_mode*    : TextureMapMode
+        flags*       : TextureFlag
+
 const
     Unlit*               = NoShading
     DefaultMaterialName* = "DefaultMaterial"
@@ -209,13 +220,6 @@ proc get_material_texture*(pmtl; kind: TextureKind; index: cuint; path: ptr AISt
 template `$`*(kind: TextureKind): string =
     $(texture_type_to_string kind)
 
-proc `$`*(mtl: Material): string =
-    var prop: array[Matkey, ptr MaterialProperty]
-    result = &"Material ({mtl.allocated_count}B allocated for {mtl.properties_count} properties)\n"
-    for key in Matkey:
-        if get_material_property(mtl.addr, $key, 0, 0, prop[key].addr) == Success:
-            result &= cyan &"    {key}\n"
-
 template gen_matkey_set(name; base_kind: Matkey) =
     template `matkey name`(kind: TextureKind; n: int): auto = (base_kind, kind, n)
     template `matkey name diffuse`*     (n: int): auto = `matkey name`(Diffuse     , n)
@@ -240,3 +244,48 @@ gen_matkey_set(mapping_mode_v, MappingModeVBase)
 gen_matkey_set(tex_map_axis  , TexMapAxisBase)
 gen_matkey_set(uv_transform  , UVTransformBase)
 gen_matkey_set(tex_flags     , TexFlagsBase)
+
+{.push inline.}
+
+proc texture_count*(mtl: ptr Material; kind: TextureKind): int =
+    int (mtl.get_material_texture_count kind)
+
+proc texture*(mtl: ptr Material; kind: TextureKind; index = 0): Option[TextureData] =
+    var
+        data    : TextureData
+        path    : AIString
+        uv_index: cuint
+    if mtl.get_material_texture(kind, cuint index, path.addr, data.mapping.addr,
+                                uv_index.addr, data.blend_factor.addr, data.texture_op.addr,
+                                data.map_mode.addr, data.flags.addr) != Success:
+        none TextureData
+    else:
+        data.kind     = kind
+        data.path     = $path
+        data.uv_index = int uv_index
+        some data
+
+proc textures*(mtl: ptr Material): seq[TextureData] =
+    for kind in TextureKind:
+        let count = mtl.texture_count kind
+        for i in 0 ..< count:
+            let data = mtl.texture kind
+            if is_some data:
+                result.add (get data)
+
+{.pop.}
+
+proc `$`*(mtl: Material): string =
+    var prop: array[Matkey, ptr MaterialProperty]
+    result = &"Material ({mtl.allocated_count}B allocated for {mtl.properties_count} properties)\n"
+    # for key in Matkey:
+    #     if get_material_property(mtl.addr, $key, 0, 0, prop[key].addr) == Success:
+    #         result &= cyan &"    {key}\n"
+
+    for kind in TextureKind:
+        let count = mtl.addr.texture_count kind
+        for i in 0 ..< count:
+            let data = mtl.addr.texture kind
+            if is_some data:
+                let data = get data
+                result &= cyan &"    {count} {kind} ([{data.uv_index}] {data.path})\n"

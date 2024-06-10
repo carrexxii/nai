@@ -49,7 +49,10 @@ task restore, "Fetch and build dependencies":
 task test, "Run tests":
     build_task()
 
-    let files = (list_files TestDir).filter(proc (path: string): bool = not path.endswith(".nai"))
+    let files = (list_files TestDir).filter(proc (path: string): bool =
+        not (path.endswith ".nai") and
+        not (path.endswith ".png")
+    )
     for file in files:
         let fname = basename file
         exec &"./{Bin} --ignore --verbose -o:{TestDir}/{fname}.nai {file}"

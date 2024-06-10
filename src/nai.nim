@@ -176,8 +176,8 @@ proc write_meshes(scene: ptr Scene; file: Stream; verbose: bool) =
             return
 
         if VerticesInterleaved in output_flags:
-            file.write_data(mesh.vertex_count.addr, sizeof header.Vertices.vert_count)
-            file.write_data(index_count.addr      , sizeof header.Vertices.index_count)
+            file.write_data(mesh.vertex_count.addr, sizeof header.MeshHeader.vert_count)
+            file.write_data(index_count.addr      , sizeof header.MeshHeader.index_count)
 
             var vert_mem  = cast[ptr UncheckedArray[uint8]](alloc (vert_size * (int mesh.vertex_count)))
             for (i, pair) in enumerate [(Position, mesh.vertices),
@@ -207,23 +207,43 @@ proc write_meshes(scene: ptr Scene; file: Stream; verbose: bool) =
             assert false
 
 proc write_materials(scene: ptr Scene; file: Stream; verbose: bool) =
+    proc get_tex(mtl: ptr Material; kind: TextureKind): TextureData =
+        let count = mtl.texture_count kind
+        if count == 0:
+            error &"Material does not have any '{kind}' texture"
+            quit 1
+        elif count > 1:
+            warning &"Material has {count} {kind} textures, but only 1 is supported"
+
+        let data = mtl.texture kind
+        if is_none data:
+            error &"Could not get material's '{kind}' texture '{get_assimp_error()}'"
+            quit 1
+        get data
+
     for mtl in to_oa(scene.materials, scene.material_count):
         if verbose:
             echo $mtl[]
 
-proc write_textures(scene: ptr Scene; file: Stream; verbose: bool) =
-    for texture in to_oa(scene.textures, scene.texture_count):
-        if verbose:
-            echo $texture[]
-
-        var fmt_hint = new_string MaxTextureHintLen
-        copy_mem(fmt_hint[0].addr, texture.format_hint[0].addr, MaxTextureHintLen)
-        if TexturesExternal in output_flags:
-            var file = open_file_stream(fmt_hint, fmWrite)
-            file.write_data(texture.data[0].addr, int texture.width)
-            close file
+        echo mtl.get_tex Diffuse
+        echo mtl.get_tex Normals
+        echo mtl.get_tex Metalness
 
     quit 0
+
+proc write_textures*(scene: ptr Scene; file: Stream; output_name: string; verbose: bool) =
+    discard
+    # for texture in to_oa(scene.textures, scene.texture_count):
+    #     if verbose:
+    #         echo $texture[]
+
+    #     var fmt_hint = new_string MaxTextureHintLen
+    #     copy_mem(fmt_hint[0].addr, texture.format_hint[0].addr, MaxTextureHintLen)
+        # if TexturesExternal in output_flags:
+        #     let texture_name = &"{output_name[0 ..^ 5]}-{}.{fmt_hint}"
+        #     var file = open_file_stream(texture_name, fmWrite)
+        #     file.write_data(texture.data[0].addr, int texture.width)
+        #     close file
 
 #[ -------------------------------------------------------------------- ]#
 
@@ -363,7 +383,7 @@ when is_main_module:
             discard
 
     if in_file == ~"":
-        error "Error: no input file provided"
+        error "No input file provided"
         write_help()
 
     if out_file == cwd:
@@ -383,14 +403,14 @@ when is_main_module:
         info &"\tSkeletons  -> {scene.skeleton_count}"
 
     if validate(scene, not quiet) != 0 and not ignore:
-        error &"Error: File '{in_file}' contains unsupported components (use -f/--force/--ignore to continue regardless)"
+        error &"File '{in_file}' contains unsupported components (use -f/--force/--ignore to continue regardless)"
         quit 1
 
     var file = open_file_stream($out_file, fmWrite)
     write_header(scene, file)
     write_meshes(scene, file, verbose)
     write_materials(scene, file, verbose)
-    write_textures(scene, file, verbose)
+    write_textures(scene, file, $out_file, verbose)
     close file
 
     free_scene scene

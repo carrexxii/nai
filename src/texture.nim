@@ -1,8 +1,10 @@
-import common
+import
+    std/streams,
+    common, header
 
 const
-    STBImage      = "lib/stb_image.h"
-    STBImageWrite = "lib/stb_image_write.h"
+    STBImage      = "../lib/stb_image.h"
+    STBImageWrite = "../lib/stb_image_write.h"
 
     MaxTextureHintLen* = 9
 

@@ -29,7 +29,6 @@ type
     VertexMask* {.size: sizeof(uint16).} = set[VertexFlag]
 
     TextureFlag* = enum
-        Default
         RGBA
         ARGB
         BGRA
@@ -49,15 +48,21 @@ type
         skeleton_count* : uint16
 
     # total size: 8 + vert_count*sizeof(Vertex) + index_count*sizeof(uint32)
-    Vertices* = object
+    MeshHeader* = object
         vert_count* : uint32
         index_count*: uint32
         verts*: ptr UncheckedArray[float32] # offset: 8
         inds* : ptr UncheckedArray[uint32]  # offset: 8 + vert_count*sizeof(Vertex)
 
-    Materials* = object
+    MaterialHeader* = object
         count*: uint16
         mtls* : ptr UncheckedArray[byte]
+
+    TextureFormat* = enum
+        Raw
+    TextureHeader* = object
+        format*: TextureFormat
+        w*, h* : uint16
 
 proc `$`*(header: Header): string =
     let valid_msg = if header.magic == NAIMagic: "valid" else: "invalid"
