@@ -206,6 +206,7 @@ proc write_meshes(scene: ptr Scene; file: Stream; verbose: bool) =
         elif VerticesSeparated in output_flags:
             assert false
 
+import cmp
 proc write_materials(scene: ptr Scene; file: Stream; verbose: bool) =
     proc get_tex(mtl: ptr Material; kind: TextureKind): TextureData =
         let count = mtl.texture_count kind
@@ -229,6 +230,7 @@ proc write_materials(scene: ptr Scene; file: Stream; verbose: bool) =
         echo mtl.get_tex Normals
         echo mtl.get_tex Metalness
         # for texure in to_oa(scene,textures, scene.texture_count):
+        echo parse_format "BC4"
 
 
     quit 0
