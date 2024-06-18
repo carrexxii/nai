@@ -29,10 +29,23 @@ type
     VertexMask* {.size: sizeof(uint16).} = set[VertexFlag]
 
     TextureFlag* = enum
-        RGBA
-        ARGB
-        BGRA
-        ABGR
+        Diffuse
+        Specular
+        Ambient
+        Emissive
+        Height
+        Normals
+        Shininess
+        Opacity
+        Displacement
+        Lightmap
+        Reflection
+        EmissionColour
+        Metalness
+        DiffuseRoughness
+        Sheen
+        Clearcoat
+        Transmission
     TextureMask* {.size: sizeof(uint16).} = set[TextureFlag]
 
 type
@@ -60,6 +73,7 @@ type
 
     TextureFormat* = enum
         Raw
+        Png
     TextureHeader* = object
         format*: TextureFormat
         w*, h* : uint16

@@ -11,8 +11,11 @@ const
     AssimpFlags = "-DASSIMP_INSTALL=OFF -DASSIMP_BUILD_TESTS=OFF -DUSE_STATIC_CRT=ON -DBUILD_SHARED_LIBS=OFF " &
                   "-DASSIMP_BUILD_ALL_EXPORTERS_BY_DEFAULT=OFF -DASSIMP_INSTALL_PDB=OFF -DASSIMP_BUILD_ZLIB=ON " &
                   "-DASSIMP_WARNINGS_AS_ERRORS=OFF"
+    CompressonatorFlags = "-DOPTION_ENABLE_ALL_APPS=OFF -DOPTION_BUILD_CMP_SDK=ON " &
+                          "-DOPTION_BUILD_EXR=OFF -DOPTION_CMP_OPENCV=OFF"
 
-    AssimpTag = "v5.4.1"
+    AssimpTag         = "v5.4.1"
+    CompressonatorTag = "V4.5.52"
     STBPaths = ["https://raw.githubusercontent.com/nothings/stb/master/stb_image.h",
                 "https://raw.githubusercontent.com/nothings/stb/master/stb_image_write.h"]
 
@@ -31,12 +34,19 @@ task build, "Build Nai~":
 
 task build_libs, "Build libraries":
     # Assimp
-    with_dir &"{LibDir}/assimp":
-        exec &"git checkout {AssimpTag}"
-        exec &"cmake -B . -S . {AssimpFlags}"
+    # with_dir &"{LibDir}/assimp":
+    #     exec &"git checkout {AssimpTag}"
+    #     exec &"cmake -B . -S . {AssimpFlags}"
+    #     exec &"cmake --build . --config release -j8"
+    # exec &"cp {LibDir}/assimp/lib/*.a {LibDir}/"
+    # exec &"cp {LibDir}/assimp/contrib/zlib/*.a {LibDir}/"
+
+    # Compressonator
+    with_dir &"{LibDir}/compressonator":
+        exec &"git checkout {CompressonatorTag}"
+        exec &"cmake -B . -S . {CompressonatorFlags}"
         exec &"cmake --build . --config release -j8"
-    exec &"cp {LibDir}/assimp/lib/*.a {LibDir}/"
-    exec &"cp {LibDir}/assimp/contrib/zlib/*.a {LibDir}/"
+    # exec &"cp {LibDir}/assimp/lib/*.a {LibDir}/"
 
 task restore, "Fetch and build dependencies":
     exec "git submodule update --init --remote --merge --recursive -j 8"

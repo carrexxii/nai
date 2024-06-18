@@ -1,6 +1,6 @@
 import
     std/streams,
-    common, header
+    common, header, cmp
 
 const
     STBImage      = "../lib/stb_image.h"
