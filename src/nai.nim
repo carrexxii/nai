@@ -229,9 +229,15 @@ proc write_materials(scene: ptr Scene; file: Stream; verbose: bool) =
         echo mtl.get_tex Diffuse
         echo mtl.get_tex Normals
         echo mtl.get_tex Metalness
-        # for texure in to_oa(scene,textures, scene.texture_count):
-        echo parse_format "BC4"
+        echo "==========================="
 
+        cmp.init_framework()
+        echo cmp.get_which_simd()
+        set_simd_sse()
+        echo cmp.get_which_simd()
+        echo get_gpu_info()
+        var opt: pointer = alloc0 500
+        echo create_options_bc1 opt.addr
 
     quit 0
 

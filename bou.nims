@@ -16,26 +16,39 @@ let
     tools_path = "./tools"
     build_path = "./build"
     tests_path = "./tests"
-    deps: seq[tuple[src, dst, tag: string; cmds: seq[string]]] = @[
-        (src : "https://github.com/assimp/assimp",
-         dst : lib_path / "assimp",
-         tag : "v5.4.1",
-         cmds: @[&"cmake -B . -S . {AssimpFlags}",
-                 &"cmake --build . --config release -j8",
-                 &"cp lib/*.a ../",
-                 &"cp contrib/zlib/*.a ../",]),
-        (src : "https://github.com/GPUOpen-Tools/compressonator",
-         dst : lib_path / "compressonator",
-         tag : "V4.5.52",
-         cmds: @[&"cmake -B . -S . {CompressonatorFlags}",
-                 &"cmake --build . --config release -j8",
-                 &"cp lib/libCMP_Compressonator.a ../",])
+    deps: seq[tuple[src, dst, tag, patch: string; cmds: seq[string]]] = @[
+        (src  : "https://github.com/assimp/assimp",
+         dst  : lib_path / "assimp",
+         tag  : "v5.4.1",
+         patch: "",
+         cmds : @[&"cmake -B . -S . {AssimpFlags}",
+                  &"cmake --build . --config release -j8",
+                  &"cp lib/*.a ../",
+                  &"cp contrib/zlib/*.a ../",]),
+        (src  : "https://github.com/GPUOpen-Tools/compressonator",
+         dst  : lib_path / "compressonator",
+         tag  : "V4.5.52",
+         patch: "compressonator.patch",
+         cmds : @[&"cmake -B . -S . {CompressonatorFlags}",
+                  &"cmake --build . --config release -j8",
+                  &"cp lib/*.a ../",])
     ]
     entry =
         if file_exists &"{src_path}/main.nim":
             src_path / "main.nim"
         else:
             src_path / &"{cwd.split('/')[^1]}.nim"
+    linker_libs = @[
+        "libassimp.a",
+        "libzlibstatic.a",
+        "libCMP_Compressonator.a",
+        "libCMP_Framework.a",
+        "libCMP_Core.a",
+        "libCMP_Core_SSE.a",
+        "libCMP_Core_AVX.a",
+        "libCMP_Core_AVX512.a",
+        "libCMP_Common.a",
+    ]
 
     debug_flags   = &"--nimCache:{build_path} -o:{bin_path}"
     release_flags = &"--cc:gcc --nimCache:{build_path} -o:{bin_path} -d:release -d:danger"
@@ -68,11 +81,14 @@ func is_git_repo(url: string): bool =
 
 import std/algorithm
 proc get_libs(): string =
-    var libs: seq[string]
-    for file in list_files lib_path:
-        if (file.ends_with ".so") or (file.ends_with ".a"):
-            libs.add file
-    libs.reverse
+    var libs: seq[string] = linker_libs
+    if libs == @[]:
+        for file in list_files lib_path:
+            if (file.ends_with ".so") or (file.ends_with ".a"):
+                libs.add file
+    else:
+        libs = linker_libs.map_it(lib_path / it)
+
     result = libs.join " "
 
 #[ -------------------------------------------------------------------- ]#
@@ -85,6 +101,8 @@ task restore, "Fetch and build dependencies":
                 run &"git submodule add {dep.src} {dep.dst}"
             with_dir dep.dst:
                 run &"git checkout {dep.tag}"
+                if dep.patch != "":
+                    run &"git apply --check --reverse {cwd / dep.patch}"
 
         with_dir dep.dst:
             for cmd in dep.cmds:

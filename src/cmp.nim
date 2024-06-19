@@ -1,3 +1,5 @@
+import common
+
 const CMPVersion*: tuple[major, minor: int] = (4, 3)
 
 const
@@ -567,3 +569,109 @@ proc compress_block*(encoder; src: pointer; src_stride: cuint; dst: pointer; dst
 proc destroy_block_encoder*(encoder): CMPError                                                            {.importc: "CMP_DestroyBlockEncoder".}
 proc compress_block_xy*(encoder; x, y: cuint; img_src: pointer; src_stride: cuint;
                                               cmp_dst: pointer; dst_stride: cuint): CMPError {.importc: "CMP_CompressBlockXY".}
+
+# CMP_Core
+
+using
+    opt : pointer
+    popt: ptr pointer
+    src : ptr UncheckedArray[cuchar]
+
+proc enable_sse4*(): cint                 {.importc: "EnableSSE4"             .}
+proc enable_avx2*(): cint                 {.importc: "EnableAVX2"             .}
+proc enable_avx512*(): cint               {.importc: "EnableAVX512"           .}
+proc disable_simd*(): cint                {.importc: "DisableSIMD"            .}
+proc get_enabled_simd_extension*(): cint  {.importc: "GetEnabledSIMDExtension".}
+
+proc create_options_bc1*(popt): cint {.importc: "CreateOptionsBC1" .}
+proc create_options_bc2*(popt): cint {.importc: "CreateOptionsBC2" .}
+proc create_options_bc3*(popt): cint {.importc: "CreateOptionsBC3" .}
+proc create_options_bc4*(popt): cint {.importc: "CreateOptionsBC4" .}
+proc create_options_bc5*(popt): cint {.importc: "CreateOptionsBC5" .}
+proc create_options_bc6*(popt): cint {.importc: "CreateOptionsBC6" .}
+proc create_options_bc7*(popt): cint {.importc: "CreateOptionsBC7" .}
+proc destroy_options_bc1*(opt): cint {.importc: "DestroyOptionsBC1".}
+proc destroy_options_bc2*(opt): cint {.importc: "DestroyOptionsBC2".}
+proc destroy_options_bc3*(opt): cint {.importc: "DestroyOptionsBC3".}
+proc destroy_options_bc4*(opt): cint {.importc: "DestroyOptionsBC4".}
+proc destroy_options_bc5*(opt): cint {.importc: "DestroyOptionsBC5".}
+proc destroy_options_bc6*(opt): cint {.importc: "DestroyOptionsBC6".}
+proc destroy_options_bc7*(opt): cint {.importc: "DestroyOptionsBC7".}
+
+proc set_channel_weights_bc1*(opt; r, g, b: cfloat): cint                         {.importc: "SetChannelWeightsBC1"   .}
+proc set_channel_weights_bc2*(opt; r, g, b: cfloat): cint                         {.importc: "SetChannelWeightsBC2"   .}
+proc set_channel_weights_bc3*(opt; r, g, b: cfloat): cint                         {.importc: "SetChannelWeightsBC3"   .}
+proc set_quality_bc1*(opt; quality: cfloat): cint                                 {.importc: "SetQualityBC1"          .}
+proc set_quality_bc2*(opt; quality: cfloat): cint                                 {.importc: "SetQualityBC2"          .}
+proc set_quality_bc3*(opt; quality: cfloat): cint                                 {.importc: "SetQualityBC3"          .}
+proc set_quality_bc4*(opt; quality: cfloat): cint                                 {.importc: "SetQualityBC4"          .}
+proc set_quality_bc5*(opt; quality: cfloat): cint                                 {.importc: "SetQualityBC5"          .}
+proc set_quality_bc6*(opt; quality: cfloat): cint                                 {.importc: "SetQualityBC6"          .}
+proc set_quality_bc7*(opt; quality: cfloat): cint                                 {.importc: "SetQualityBC7"          .}
+proc set_mask_bc6*(opt; mask: cuint): cint                                        {.importc: "SetMaskBC6"             .}
+proc set_mask_bc7*(opt; mask: cuchar): cint                                       {.importc: "SetMaskBC7"             .}
+proc set_decode_channel_mapping*(opt; map_rgba: bool): cint                       {.importc: "SetDecodeChannelMapping".}
+proc set_alpha_threshold_bc1*(opt; threshold: cuchar): cint                       {.importc: "SetAlphaThresholdBC1"   .}
+proc set_refine_steps_bc1*(opt; steps: cuint): cint                               {.importc: "SetRefineStepsBC1"      .}
+proc set_alpha_options_bc7*(opt; img_needs_alpha: bool, restr_rgb, restr_a): cint {.importc: "SetAlphaOptionsBC7"     .}
+proc set_error_threshold_bc7*(opt; min, max: cfloat): cint                        {.importc: "SetErrorThresholdBC7"   .}
+proc set_srgb_bc1*(opt; srgb: bool): cint                                         {.importc: "SetSrgbBC1"             .}
+proc set_srgb_bc2*(opt; srgb: bool): cint                                         {.importc: "SetSrgbBC2"             .}
+proc set_srgb_bc3*(opt; srgb: bool): cint                                         {.importc: "SetSrgbBC3"             .}
+proc set_gamma_bc1*(opt; srgb: bool): cint                                        {.importc: "SetGammaBC1"            .}
+proc set_gamma_bc2*(opt; srgb: bool): cint                                        {.importc: "SetGammaBC2"            .}
+proc set_gamma_bc3*(opt; srgb: bool): cint                                        {.importc: "SetGammaBC3"            .}
+proc set_signed_bc6*(opt; sf16: bool): cint                                       {.importc: "SetSignedBC6"           .}
+
+proc compress_block_bc1*(src; src_stride: cuint; cmp_block: ptr array[8 , cuchar]; opt): cint             {.importc: "CompressBlockBC1"   .}
+proc compress_block_bc2*(src; src_stride: cuint; cmp_block: ptr array[16, cuchar]; opt): cint             {.importc: "CompressBlockBC2"   .}
+proc compress_block_bc3*(src; src_stride: cuint; cmp_block: ptr array[16, cuchar]; opt): cint             {.importc: "CompressBlockBC3"   .}
+proc compress_block_bc4*(src; src_stride: cuint; cmp_block: ptr array[8 , cuchar]; opt): cint             {.importc: "CompressBlockBC4"   .}
+proc compress_block_bc4s*(src; src_stride: cuint; cmp_block: ptr array[8, cuchar]; opt): cint             {.importc: "CompressBlockBC4"   .}
+proc compress_block_bc7*(src; src_stride: cuint; cmp_block: ptr array[16, cuchar]; opt): cint             {.importc: "CompressBlockBC7"   .}
+proc decompress_block_bc1*(cmp_block: ptr array[8 , cuchar]; src_block: ptr array[64, cuchar]; opt): cint {.importc: "DecompressBlockBC1" .}
+proc decompress_block_bc2*(cmp_block: ptr array[16, cuchar]; src_block: ptr array[64, cuchar]; opt): cint {.importc: "DecompressBlockBC2" .}
+proc decompress_block_bc3*(cmp_block: ptr array[16, cuchar]; src_block: ptr array[16, cuchar]; opt): cint {.importc: "DecompressBlockBC3" .}
+proc decompress_block_bc4*(cmp_block: ptr array[8 , cuchar]; src_block: ptr array[64, cuchar]; opt): cint {.importc: "DecompressBlockBC4" .}
+proc decompress_block_bc4s*(cmp_block: ptr array[8, cuchar]; src_block: ptr array[16, cuchar]; opt): cint {.importc: "DecompressBlockBC4S".}
+proc decompress_block_bc7*(cmp_block: ptr array[16, cuchar]; src_block: ptr array[64, cuchar]; opt): cint {.importc: "DecompressBlockBC7" .}
+
+proc compress_block_bc5*(src1: ptr UncheckedArray[cuchar]; src1_stride: cuint;
+                         src2: ptr UncheckedArray[cuchar]; src2_stride: cuint;
+                         cmp_block: ptr array[16, cuchar]; opt): cint {.importc: "CompressBlockBC5".}
+proc compress_block_bc5s*(src1: ptr UncheckedArray[cuchar]; src1_stride: cuint;
+                          src2: ptr UncheckedArray[cuchar]; src2_stride: cuint;
+                          cmp_block: ptr array[16, cuchar]; opt): cint {.importc: "CompressBlockBC5S".}
+proc decompress_block_bc5*(cmp_block: ptr array[16, cuchar]; src1, src2: ptr array[16, cuchar]; opt): cint  {.importc: "DecompressBlockBC5" .}
+proc decompress_block_bc5s*(cmp_block: ptr array[16, cuchar]; src1, src2: ptr array[16, cuchar]; opt): cint {.importc: "DecompressBlockBC5S".}
+
+proc compress_block_bc6*(src: ptr UncheckedArray[cushort]; src_stride: cuint; cmp_block: ptr array[16, cuchar]; opt): cint {.importc: "CompressBlockBC6"  .}
+proc decompress_block_bc6*(cmp_block: ptr array[16, cuchar]; src: ptr array[48, cushort]; opt): cint                       {.importc: "DecompressBlockBC6".}
+
+#[ -------------------------------------------------------------------- ]#
+
+proc get_gpu_info*(): CMPKernelDeviceInfo =
+    let res = get_device_info result.addr
+    if res != OK:
+        error &"Compressonator error getting device info: '{res}'"
+
+proc get_which_simd*(): string =
+    case get_enabled_simd_extension()
+    of 0: "None"
+    of 1: "SSE4"
+    of 2: "AVX2"
+    of 3: "AVX512"
+    else:
+        error "Bad value received from compressonator `get_enabled_simd_extension`"
+        "";
+
+proc set_simd_sse*() =
+    let res = enable_sse4()
+    if res != 0:
+        error &"Failed to set simd to SSE '{res}'"
+
+# proc enable_sse4*(): cint                 {.importc: "EnableSSE4"             .}
+# proc enable_avx2*(): cint                 {.importc: "EnableAVX2"             .}
+# proc enable_avx512*(): cint               {.importc: "EnableAVX512"           .}
+# proc disable_simd*(): cint                {.importc: "DisableSIMD"            .}
+# proc get_enabled_simd_extension*(): cint  {.importc: "GetEnabledSIMDExtension".}

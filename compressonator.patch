@@ -1,0 +1,240 @@
+diff --git a/cmp_core/shaders/bc1_encode_kernel.cpp b/cmp_core/shaders/bc1_encode_kernel.cpp
+index 7120885c..19e12f7e 100644
+--- a/cmp_core/shaders/bc1_encode_kernel.cpp
++++ b/cmp_core/shaders/bc1_encode_kernel.cpp
+@@ -323,7 +323,7 @@ int CMP_CDECL SetGammaBC1(void* options, CGU_BOOL sRGB)
+     return SetSrgbBC1(options, sRGB);
+ }
+ 
+-int CMP_CDECL CompressBlockBC1(const unsigned char* srcBlock, unsigned int srcStrideInBytes, CMP_GLOBAL unsigned char cmpBlock[8], const void* options = NULL)
++int CMP_CDECL CompressBlockBC1(const unsigned char* srcBlock, unsigned int srcStrideInBytes, CMP_GLOBAL unsigned char cmpBlock[8], const void* options)
+ {
+     CMP_Vec4uc inBlock[16];
+ 
+@@ -357,7 +357,7 @@ int CMP_CDECL CompressBlockBC1(const unsigned char* srcBlock, unsigned int srcSt
+     return CGU_CORE_OK;
+ }
+ 
+-int CMP_CDECL DecompressBlockBC1(const unsigned char cmpBlock[8], CMP_GLOBAL unsigned char srcBlock[64], const void* options = NULL)
++int CMP_CDECL DecompressBlockBC1(const unsigned char cmpBlock[8], CMP_GLOBAL unsigned char srcBlock[64], const void* options)
+ {
+     CMP_BC15Options* BC15options = (CMP_BC15Options*)options;
+     CMP_BC15Options  BC15optionsDefault;
+diff --git a/cmp_core/shaders/bc2_encode_kernel.cpp b/cmp_core/shaders/bc2_encode_kernel.cpp
+index a544abf0..9afb2175 100644
+--- a/cmp_core/shaders/bc2_encode_kernel.cpp
++++ b/cmp_core/shaders/bc2_encode_kernel.cpp
+@@ -167,7 +167,7 @@ void DecompressBC2_Internal(CMP_GLOBAL CGU_UINT8 rgbaBlock[BLOCK_SIZE_4X4X4], co
+ int CMP_CDECL CompressBlockBC2(const unsigned char*     srcBlock,
+                                unsigned int             srcStrideInBytes,
+                                CMP_GLOBAL unsigned char cmpBlock[16],
+-                               CMP_GLOBAL const void*   options = NULL)
++                               CMP_GLOBAL const void*   options)
+ {
+     CMP_Vec4uc inBlock[16];
+ 
+@@ -200,7 +200,7 @@ int CMP_CDECL CompressBlockBC2(const unsigned char*     srcBlock,
+     return CGU_CORE_OK;
+ }
+ 
+-int CMP_CDECL DecompressBlockBC2(const unsigned char cmpBlock[16], CMP_GLOBAL unsigned char srcBlock[64], const void* options = NULL)
++int CMP_CDECL DecompressBlockBC2(const unsigned char cmpBlock[16], CMP_GLOBAL unsigned char srcBlock[64], const void* options)
+ {
+     CMP_BC15Options* BC15options = (CMP_BC15Options*)options;
+     CMP_BC15Options  BC15optionsDefault;
+diff --git a/cmp_core/shaders/bc3_encode_kernel.cpp b/cmp_core/shaders/bc3_encode_kernel.cpp
+index 0e017f5f..8a86cc14 100644
+--- a/cmp_core/shaders/bc3_encode_kernel.cpp
++++ b/cmp_core/shaders/bc3_encode_kernel.cpp
+@@ -154,7 +154,7 @@ void DecompressBC3_Internal(CMP_GLOBAL CGU_UINT8 rgbaBlock[64], const CGU_UINT32
+             (alphaBlock[i] << RGBA8888_OFFSET_A) | (((CMP_GLOBAL CGU_UINT32*)rgbaBlock)[i] & ~(BYTE_MASK << RGBA8888_OFFSET_A));
+ }
+ 
+-int CMP_CDECL CompressBlockBC3(const unsigned char* srcBlock, unsigned int srcStrideInBytes, CMP_GLOBAL unsigned char cmpBlock[16], const void* options = NULL)
++int CMP_CDECL CompressBlockBC3(const unsigned char* srcBlock, unsigned int srcStrideInBytes, CMP_GLOBAL unsigned char cmpBlock[16], const void* options)
+ {
+     CMP_Vec4uc inBlock[16];
+ 
+@@ -188,7 +188,7 @@ int CMP_CDECL CompressBlockBC3(const unsigned char* srcBlock, unsigned int srcSt
+     return CGU_CORE_OK;
+ }
+ 
+-int CMP_CDECL DecompressBlockBC3(const unsigned char cmpBlock[16], CMP_GLOBAL unsigned char srcBlock[64], const void* options = NULL)
++int CMP_CDECL DecompressBlockBC3(const unsigned char cmpBlock[16], CMP_GLOBAL unsigned char srcBlock[64], const void* options)
+ {
+     CMP_BC15Options* BC15options = (CMP_BC15Options*)options;
+     CMP_BC15Options  BC15optionsDefault;
+diff --git a/cmp_core/shaders/bc4_encode_kernel.cpp b/cmp_core/shaders/bc4_encode_kernel.cpp
+index aa419ff4..f1e0ced6 100644
+--- a/cmp_core/shaders/bc4_encode_kernel.cpp
++++ b/cmp_core/shaders/bc4_encode_kernel.cpp
+@@ -199,7 +199,7 @@ int CMP_CDECL SetQualityBC4(void* options, CGU_FLOAT fquality)
+ }
+ 
+ // prototype code
+-int CMP_CDECL CompressBlockBC4S(const char* srcBlock, unsigned int srcStrideInBytes, CMP_GLOBAL unsigned char cmpBlock[8], const void* options = NULL)
++int CMP_CDECL CompressBlockBC4S(const char* srcBlock, unsigned int srcStrideInBytes, CMP_GLOBAL unsigned char cmpBlock[8], const void* options)
+ {
+     char inBlock[16];
+     //----------------------------------
+@@ -229,7 +229,7 @@ int CMP_CDECL CompressBlockBC4S(const char* srcBlock, unsigned int srcStrideInBy
+ }
+ 
+ // prototype code
+-int CMP_CDECL DecompressBlockBC4S(const unsigned char cmpBlock[8], CMP_GLOBAL char srcBlock[16], const void* options = NULL)
++int CMP_CDECL DecompressBlockBC4S(const unsigned char cmpBlock[8], CMP_GLOBAL char srcBlock[16], const void* options)
+ {
+     CMP_BC15Options* BC15options = (CMP_BC15Options*)options;
+     CMP_BC15Options  BC15optionsDefault;
+@@ -242,7 +242,7 @@ int CMP_CDECL DecompressBlockBC4S(const unsigned char cmpBlock[8], CMP_GLOBAL ch
+     return CGU_CORE_OK;
+ }
+ 
+-int CMP_CDECL CompressBlockBC4(const unsigned char* srcBlock, unsigned int srcStrideInBytes, CMP_GLOBAL unsigned char cmpBlock[8], const void* options = NULL)
++int CMP_CDECL CompressBlockBC4(const unsigned char* srcBlock, unsigned int srcStrideInBytes, CMP_GLOBAL unsigned char cmpBlock[8], const void* options)
+ {
+     CMP_BC15Options* BC15options = (CMP_BC15Options*)options;
+     CMP_BC15Options  BC15optionsDefault;
+@@ -271,7 +271,7 @@ int CMP_CDECL CompressBlockBC4(const unsigned char* srcBlock, unsigned int srcSt
+     return CGU_CORE_OK;
+ }
+ 
+-int CMP_CDECL DecompressBlockBC4(const unsigned char cmpBlock[8], CMP_GLOBAL unsigned char srcBlock[16], const void* options = NULL)
++int CMP_CDECL DecompressBlockBC4(const unsigned char cmpBlock[8], CMP_GLOBAL unsigned char srcBlock[16], const void* options)
+ {
+     CMP_BC15Options* BC15options = (CMP_BC15Options*)options;
+     CMP_BC15Options  BC15optionsDefault;
+diff --git a/cmp_core/shaders/bc5_encode_kernel.cpp b/cmp_core/shaders/bc5_encode_kernel.cpp
+index 9959e2e7..10313e01 100644
+--- a/cmp_core/shaders/bc5_encode_kernel.cpp
++++ b/cmp_core/shaders/bc5_encode_kernel.cpp
+@@ -271,7 +271,7 @@ int CMP_CDECL CompressBlockBC5(const CGU_UINT8*     srcBlockR,
+                                const CGU_UINT8*     srcBlockG,
+                                unsigned int         srcStrideInBytes2,
+                                CMP_GLOBAL CGU_UINT8 cmpBlock[16],
+-                               const void*          options = NULL)
++                               const void*          options)
+ {
+     CGU_UINT8 inBlockR[16];
+ 
+@@ -319,7 +319,7 @@ int CMP_CDECL CompressBlockBC5(const CGU_UINT8*     srcBlockR,
+ int CMP_CDECL DecompressBlockBC5(const CGU_UINT8      cmpBlock[16],
+                                  CMP_GLOBAL CGU_UINT8 srcBlockR[16],
+                                  CMP_GLOBAL CGU_UINT8 srcBlockG[16],
+-                                 const void*          options = NULL)
++                                 const void*          options)
+ {
+     CMP_BC15Options* BC15options = (CMP_BC15Options*)options;
+     CMP_BC15Options  BC15optionsDefault;
+@@ -339,7 +339,7 @@ int CMP_CDECL CompressBlockBC5S(const CGU_INT8*      srcBlockR,
+                                 const CGU_INT8*      srcBlockG,
+                                 unsigned int         srcStrideInBytes2,
+                                 CMP_GLOBAL CGU_UINT8 cmpBlock[16],
+-                                const void*          options = NULL)
++                                const void*          options)
+ {
+     CGU_INT8 inBlockR[16];
+ 
+@@ -388,7 +388,7 @@ int CMP_CDECL CompressBlockBC5S(const CGU_INT8*      srcBlockR,
+ int CMP_CDECL DecompressBlockBC5S(const CGU_UINT8     cmpBlock[16],
+                                   CMP_GLOBAL CGU_INT8 srcBlockR[16],
+                                   CMP_GLOBAL CGU_INT8 srcBlockG[16],
+-                                  const void*         options = NULL)
++                                  const void*         options)
+ {
+     CMP_BC15Options* BC15options = (CMP_BC15Options*)options;
+     CMP_BC15Options  BC15optionsDefault;
+diff --git a/cmp_core/shaders/bc6_encode_kernel.cpp b/cmp_core/shaders/bc6_encode_kernel.cpp
+index 5c1de050..80256732 100644
+--- a/cmp_core/shaders/bc6_encode_kernel.cpp
++++ b/cmp_core/shaders/bc6_encode_kernel.cpp
+@@ -4365,7 +4365,7 @@ int CMP_CDECL SetSignedBC6(void* options, CGU_BOOL sf16)
+ int CMP_CDECL CompressBlockBC6(const CGU_UINT16*      srcBlock,
+                                unsigned int           srcStrideInShorts,
+                                CMP_GLOBAL CGU_UINT8   cmpBlock[16],
+-                               const CMP_GLOBAL void* options = NULL)
++                               const CMP_GLOBAL void* options)
+ {
+     CGU_UINT16 inBlock[48] = {};
+ 
+@@ -4410,7 +4410,7 @@ int CMP_CDECL CompressBlockBC6(const CGU_UINT16*      srcBlock,
+     return CGU_CORE_OK;
+ }
+ 
+-int CMP_CDECL DecompressBlockBC6(const unsigned char cmpBlock[16], CGU_UINT16 srcBlock[48], const void* options = NULL)
++int CMP_CDECL DecompressBlockBC6(const unsigned char cmpBlock[16], CGU_UINT16 srcBlock[48], const void* options)
+ {
+     BC6H_Encode* BC6HEncode = (BC6H_Encode*)options;
+     BC6H_Encode  BC6HEncodeDefault;
+diff --git a/cmp_core/shaders/bc7_encode_kernel.cpp b/cmp_core/shaders/bc7_encode_kernel.cpp
+index 923089f3..937ff74f 100644
+--- a/cmp_core/shaders/bc7_encode_kernel.cpp
++++ b/cmp_core/shaders/bc7_encode_kernel.cpp
+@@ -3514,7 +3514,7 @@ int CMP_CDECL SetAlphaOptionsBC7(void* options, CGU_BOOL imageNeedsAlpha, CGU_BO
+     return CGU_CORE_OK;
+ }
+ 
+-int CMP_CDECL CompressBlockBC7(const unsigned char* srcBlock, unsigned int srcStrideInBytes, CMP_GLOBAL unsigned char cmpBlock[16], const void* options = NULL)
++int CMP_CDECL CompressBlockBC7(const unsigned char* srcBlock, unsigned int srcStrideInBytes, CMP_GLOBAL unsigned char cmpBlock[16], const void* options)
+ {
+     CMP_Vec4uc inBlock[SOURCE_BLOCK_SIZE];
+ 
+@@ -3586,7 +3586,7 @@ int CMP_CDECL CompressBlockBC7(const unsigned char* srcBlock, unsigned int srcSt
+     return CGU_CORE_OK;
+ }
+ 
+-int CMP_CDECL DecompressBlockBC7(const unsigned char cmpBlock[16], unsigned char srcBlock[64], const void* options = NULL)
++int CMP_CDECL DecompressBlockBC7(const unsigned char cmpBlock[16], unsigned char srcBlock[64], const void* options)
+ {
+     BC7_Encode* u_BC7Encode      = (BC7_Encode*)options;
+     BC7_Encode  BC7EncodeDefault = {0};  // for q = 0.05
+diff --git a/cmp_core/shaders/common_def.h b/cmp_core/shaders/common_def.h
+index fa70cc2d..0974e8eb 100644
+--- a/cmp_core/shaders/common_def.h
++++ b/cmp_core/shaders/common_def.h
+@@ -33,6 +33,8 @@
+ #ifndef CMP_COMMON_DEFINITIONS_H
+ #define CMP_COMMON_DEFINITIONS_H
+ 
++#include "cmp_core.h"
++
+ //#define USE_CMP_FIDELITY_FX_H
+ 
+ // Proxy ISPC compiler (Warning! Not all ASPM features will be available : expect build errors for specialized ASPM code!
+diff --git a/cmp_core/source/cmp_core.cpp b/cmp_core/source/cmp_core.cpp
+index ca763d31..e09b4bdf 100644
+--- a/cmp_core/source/cmp_core.cpp
++++ b/cmp_core/source/cmp_core.cpp
+@@ -23,6 +23,7 @@
+ 
+ #include "bc1_encode_kernel.h"
+ #include "cpu_extensions.h"
++#include "cmp_core.h"
+ 
+ enum SIMD_ENABLED_EXTENSIONS
+ {
+diff --git a/cmp_core/source/cmp_core.h b/cmp_core/source/cmp_core.h
+index d2c486c1..674aa637 100644
+--- a/cmp_core/source/cmp_core.h
++++ b/cmp_core/source/cmp_core.h
+@@ -35,6 +35,11 @@
+ #define CMP_CDECL
+ #endif
+ 
++#ifdef __cplusplus
++#include <cstddef>
++extern "C" {
++#endif
++
+ //====================================================================================
+ // API Definitions for Core API
+ //------------------------------------------------------------------------------------
+@@ -210,4 +215,8 @@ int CMP_CDECL DecompressBlockBC5S(const unsigned char cmpBlock[16], char srcBloc
+ int CMP_CDECL CompressBlockBC6(const unsigned short* srcBlock, unsigned int srcStrideInShorts, unsigned char cmpBlock[16], const void* options CMP_DEFAULTNULL);
+ int CMP_CDECL DecompressBlockBC6(const unsigned char cmpBlock[16], unsigned short srcBlock[48], const void* options CMP_DEFAULTNULL);
+ 
++#ifdef __cplusplus
++} // extern "C"
++#endif
++
+ #endif  // CMP_CORE
