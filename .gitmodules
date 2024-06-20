@@ -1,6 +1,6 @@
 [submodule "lib/assimp"]
 	path = lib/assimp
 	url = https://github.com/assimp/assimp
-[submodule "lib/compressonator"]
-	path = lib/compressonator
-	url = https://github.com/GPUOpen-Tools/compressonator
+[submodule "lib/ispctc"]
+	path = lib/ispctc
+	url = https://github.com/GameTechDev/ISPCTextureCompressor/

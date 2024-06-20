@@ -1,6 +1,6 @@
 import
     std/[streams, parseopt, parsecfg, paths, tables, strutils, enumerate],
-    common, mesh, texture, material, animation, light, camera, header
+    common, ispctc, mesh, texture, material, animation, light, camera, header
 from std/os       import get_app_dir
 from std/files    import file_exists
 from std/sequtils import foldl, to_seq
@@ -206,8 +206,7 @@ proc write_meshes(scene: ptr Scene; file: Stream; verbose: bool) =
         elif VerticesSeparated in output_flags:
             assert false
 
-import cmp
-proc write_materials(scene: ptr Scene; file: Stream; verbose: bool) =
+proc write_materials(scene: ptr Scene; file: Stream; output_name: string; verbose: bool) =
     proc get_tex(mtl: ptr Material; kind: TextureKind): TextureData =
         let count = mtl.texture_count kind
         if count == 0:
@@ -222,6 +221,9 @@ proc write_materials(scene: ptr Scene; file: Stream; verbose: bool) =
             quit 1
         get data
 
+    if verbose:
+        discard
+
     for mtl in to_oa(scene.materials, scene.material_count):
         if verbose:
             echo $mtl[]
@@ -231,22 +233,38 @@ proc write_materials(scene: ptr Scene; file: Stream; verbose: bool) =
         echo mtl.get_tex Metalness
         echo "==========================="
 
-        cmp.init_framework()
-        echo cmp.get_which_simd()
-        set_simd_sse()
-        echo cmp.get_which_simd()
-        echo get_gpu_info()
-        var opt: pointer = alloc0 500
-        echo create_options_bc1 opt.addr
+        let tex_datas = @[mtl.get_tex Diffuse, mtl.get_tex Normals, mtl.get_tex Metalness]
+        for tex_data in tex_datas:
+            if tex_data.path.starts_with "*":
+                let tex       = scene.textures[parse_int tex_data.path[1..^1]][]
+                var file_name = output_name
+                file_name.remove_suffix ".nai"
+                file_name &= &"-{to_lower_ascii $tex_data.kind}.png"
+
+                let raw_tex = load_image(tex.data, tex.width)
+                let w = uint32 raw_tex.w
+                let h = uint32 raw_tex.h
+
+                # var file = open_file_stream(file_name, fmWrite)
+                # file.write_data(tex.data[0].addr, int tex.width)
+                # close file
+
+                let settings = BC1.get_profile UltraFast
+                let cmp_tex  = settings.compress(cast[ptr uint8](raw_tex.data), w, h, 4*w)
+
+                var file = open_file_stream(file_name, fmWrite)
+                file.write_data(cmp_tex.data, cmp_tex.size)
+                close file
+            else:
+                assert false
 
     quit 0
 
-proc write_textures*(scene: ptr Scene; file: Stream; output_name: string; verbose: bool) =
-    discard
+# proc write_textures*(scene: ptr Scene; file: Stream; output_name: string; verbose: bool) =
+    # discard
     # for texture in to_oa(scene.textures, scene.texture_count):
     #     if verbose:
     #         echo $texture[]
-
     #     var fmt_hint = new_string MaxTextureHintLen
     #     copy_mem(fmt_hint[0].addr, texture.format_hint[0].addr, MaxTextureHintLen)
         # if TexturesExternal in output_flags:
@@ -419,8 +437,7 @@ when is_main_module:
     var file = open_file_stream($out_file, fmWrite)
     write_header(scene, file)
     write_meshes(scene, file, verbose)
-    write_materials(scene, file, verbose)
-    write_textures(scene, file, $out_file, verbose)
+    write_materials(scene, file, $out_file, verbose)
     close file
 
     free_scene scene

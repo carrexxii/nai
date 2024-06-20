@@ -41,13 +41,7 @@ let
     linker_libs = @[
         "libassimp.a",
         "libzlibstatic.a",
-        "libCMP_Compressonator.a",
-        "libCMP_Framework.a",
-        "libCMP_Core.a",
-        "libCMP_Core_SSE.a",
-        "libCMP_Core_AVX.a",
-        "libCMP_Core_AVX512.a",
-        "libCMP_Common.a",
+        "libispc_texcomp.so",
     ]
 
     debug_flags   = &"--nimCache:{build_path} -o:{bin_path}"
