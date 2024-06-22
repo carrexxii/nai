@@ -11,6 +11,8 @@ type
         VerySlow
 
     CompressionKind* = enum
+        NoneRGB
+        NoneRGBA
         BC1
         BC3
         BC4
@@ -121,6 +123,8 @@ func bytes_per_block(kind: CompressionKind): int =
     case kind
     of BC1, BC4, ETC1: 8
     of BC3, BC5, BC6H, BC7, ASTC: 16
+    of NoneRGB : 48
+    of NoneRGBA: 64
 
 proc get_profile*(kind: CompressionKind; mode = Basic; with_alpha = true; block_size = (4, 4)): CompressionProfile =
     result = CompressionProfile(kind: kind)
@@ -192,7 +196,6 @@ proc compress*(profile: CompressionProfile; src: ptr uint8; w, h, stride: SomeUn
     replicate_borders(edged_img.addr, raw_img.addr, cint bw, cint bh, cint bpp)
 
     result.size = (bytes_per_block profile.kind) * block_count
-    echo result.size, " ", (bytes_per_block profile.kind), " ", block_count
     result.data = cast[ptr uint8](alloc result.size)
     case profile.kind
     of BC1: compress_blocks_bc1(edged_img.addr, result.data)

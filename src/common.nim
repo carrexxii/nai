@@ -110,3 +110,19 @@ proc warning*(msg: string) = echo yellow &"Warning: {msg}"
 
 template to_oa*(arr, c): untyped =
     to_open_array(arr, 0, int c - 1)
+
+#[ -------------------------------------------------------------------- ]#
+
+{.experimental: "strictNotNil".}
+
+type CArray*[T] = object
+    size*: int
+    data*: ptr UncheckedArray[T] not nil
+
+func carray*[T](data: ptr T not nil; size: Natural): CArray[T] =
+    CArray(data: cast[ptr UncheckedArray[T]](data), size: int size)
+
+func `[]`*[T](arr: CArray[T]; i: int): T =
+    if i >= arr.size or i < 0:
+        assert false, &"Index '{i}' out of range for {arr}"
+    arr.data[i]

@@ -48,6 +48,8 @@ proc write_jpg*(fname: cstring; w, h, comp: cint; data: pointer; quality: cint):
 proc write_hdr*(fname: cstring; w, h, comp: cint; data: ptr cfloat): cint             {.importc: "stbi_write_hdr".}
 {.pop.}
 
+#[ -------------------------------------------------------------------- ]#
+
 type Image* = object
     data*    : ptr uint8
     w*, h*   : int

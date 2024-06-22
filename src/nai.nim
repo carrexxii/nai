@@ -1,6 +1,6 @@
 import
     std/[streams, parseopt, parsecfg, paths, tables, strutils, enumerate],
-    common, ispctc, mesh, texture, material, animation, light, camera, header
+    common, ispctc, mesh, texture, material, animation, light, camera, header, dds
 from std/os       import get_app_dir
 from std/files    import file_exists
 from std/sequtils import foldl, to_seq
@@ -239,7 +239,7 @@ proc write_materials(scene: ptr Scene; file: Stream; output_name: string; verbos
                 let tex       = scene.textures[parse_int tex_data.path[1..^1]][]
                 var file_name = output_name
                 file_name.remove_suffix ".nai"
-                file_name &= &"-{to_lower_ascii $tex_data.kind}.png"
+                file_name &= &"-{to_lower_ascii $tex_data.kind}.dds"
 
                 let raw_tex = load_image(tex.data, tex.width)
                 let w = uint32 raw_tex.w
@@ -252,9 +252,10 @@ proc write_materials(scene: ptr Scene; file: Stream; output_name: string; verbos
                 let profile = BC1.get_profile()
                 let cmp_tex = profile.compress(cast[ptr uint8](raw_tex.data), w, h, 4*w)
 
-                var file = open_file_stream(file_name, fmWrite)
-                file.write_data(cmp_tex.data, cmp_tex.size)
-                close file
+                # encode_dds()
+                # var file = open_file_stream(file_name, fmWrite)
+                # file.write_data(cmp_tex.data, cmp_tex.size)
+                # close file
             else:
                 assert false
 
