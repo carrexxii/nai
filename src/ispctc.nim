@@ -24,7 +24,7 @@ type
 
 type
     RGBASurface = object
-        data  : ptr uint8
+        data  : ptr byte
         width : uint32
         height: uint32
         stride: uint32
@@ -66,7 +66,7 @@ type
         else: discard
 
     CompressedTexture* = object
-        data*: ptr uint8
+        data*: ptr byte
         size*: int
 
 #[ -------------------------------------------------------------------- ]#
@@ -106,14 +106,14 @@ proc get_profile_astc_alpha_slow*(settings: ptr ASTCEncSettings; bw, bh: cint) {
 #  - the blocks are stored in raster scan order (natural CPU texture layout)
 #  - use the GetProfile_* functions to select various speed/quality tradeoffs
 #  - the RGB profiles are slightly faster as they ignore the alpha channel
-proc compress_blocks_bc1*(src: ptr RGBASurface; dst: ptr uint8)                                 {.importc: "CompressBlocksBC1" .}
-proc compress_blocks_bc3*(src: ptr RGBASurface; dst: ptr uint8)                                 {.importc: "CompressBlocksBC3" .}
-proc compress_blocks_bc4*(src: ptr RGBASurface; dst: ptr uint8)                                 {.importc: "CompressBlocksBC4" .}
-proc compress_blocks_bc5*(src: ptr RGBASurface; dst: ptr uint8)                                 {.importc: "CompressBlocksBC5" .}
-proc compress_blocks_bc6h*(src: ptr RGBASurface; dst: ptr uint8; settings: ptr BC6HEncSettings) {.importc: "CompressBlocksBC6H".}
-proc compress_blocks_bc7*( src: ptr RGBASurface; dst: ptr uint8; settings: ptr BC7EncSettings)  {.importc: "CompressBlocksBC7" .}
-proc compress_blocks_etc1*(src: ptr RGBASurface; dst: ptr uint8; settings: ptr ETCEncSettings)  {.importc: "CompressBlocksETC1".}
-proc compress_blocks_astc*(src: ptr RGBASurface; dst: ptr uint8; settings: ptr ASTCEncSettings) {.importc: "CompressBlocksASTC".}
+proc compress_blocks_bc1*(src: ptr RGBASurface; dst: ptr byte)                                 {.importc: "CompressBlocksBC1" .}
+proc compress_blocks_bc3*(src: ptr RGBASurface; dst: ptr byte)                                 {.importc: "CompressBlocksBC3" .}
+proc compress_blocks_bc4*(src: ptr RGBASurface; dst: ptr byte)                                 {.importc: "CompressBlocksBC4" .}
+proc compress_blocks_bc5*(src: ptr RGBASurface; dst: ptr byte)                                 {.importc: "CompressBlocksBC5" .}
+proc compress_blocks_bc6h*(src: ptr RGBASurface; dst: ptr byte; settings: ptr BC6HEncSettings) {.importc: "CompressBlocksBC6H".}
+proc compress_blocks_bc7*( src: ptr RGBASurface; dst: ptr byte; settings: ptr BC7EncSettings)  {.importc: "CompressBlocksBC7" .}
+proc compress_blocks_etc1*(src: ptr RGBASurface; dst: ptr byte; settings: ptr ETCEncSettings)  {.importc: "CompressBlocksETC1".}
+proc compress_blocks_astc*(src: ptr RGBASurface; dst: ptr byte; settings: ptr ASTCEncSettings) {.importc: "CompressBlocksASTC".}
 
 proc replicate_borders*(dst_slice, src_tex: ptr RGBASurface; x, y, bpp: cint) {.importc: "ReplicateBorders".}
 
@@ -181,22 +181,22 @@ proc alloc_img(w, h: SomeUnsignedInt): RGBASurface =
     result.width  = w
     result.height = h
     result.stride = 4 * w
-    result.data   = cast[ptr uint8](alloc(result.height * result.stride))
+    result.data   = cast[ptr byte](alloc(result.height * result.stride))
 
-proc compress*(profile: CompressionProfile; src: ptr uint8; w, h, stride: SomeUnsignedInt): CompressedTexture =
+proc compress*(profile: CompressionProfile; src: ptr byte; w, h: SomeUnsignedInt): CompressedTexture =
     const BlockWidth  = 4
     const BlockHeight = 4
     let bw = BlockWidth  * ceil_div(w, BlockWidth)
     let bh = BlockHeight * ceil_div(h, BlockHeight)
     let block_count = int (bw div BlockWidth) * (bw div BlockHeight)
 
-    const bpp = 32
-    let raw_img   = RGBASurface(data: src, width: w, height: h, stride: stride)
+    let raw_img   = RGBASurface(data: src, width: w, height: h, stride: 4*w)
     var edged_img = alloc_img(bw, bh)
-    replicate_borders(edged_img.addr, raw_img.addr, cint bw, cint bh, cint bpp)
+    copy_mem(edged_img.data, src, int(4 * bw * bh))
+    # replicate_borders(edged_img.addr, raw_img.addr, cint bw, cint bh, 32)
 
     result.size = (bytes_per_block profile.kind) * block_count
-    result.data = cast[ptr uint8](alloc result.size)
+    result.data = cast[ptr byte](alloc result.size)
     case profile.kind
     of BC1: compress_blocks_bc1(edged_img.addr, result.data)
     of BC7: compress_blocks_bc7(edged_img.addr, result.data, profile.bc7.addr)

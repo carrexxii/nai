@@ -119,6 +119,7 @@ task test, "Run the project's tests":
 
     let files = (list_files tests_path).filter(proc (path: string): bool =
         not (path.endswith ".nai") and
+        not (path.endswith ".dds") and
         not (path.endswith ".png")
     )
     for file in files:

@@ -250,9 +250,13 @@ proc write_materials(scene: ptr Scene; file: Stream; output_name: string; verbos
                 # close file
 
                 let profile = BC1.get_profile()
-                let cmp_tex = profile.compress(cast[ptr uint8](raw_tex.data), w, h, 4*w)
+                let cmp_tex = profile.compress(cast[ptr byte](raw_tex.data), w, h)
 
-                # encode_dds()
+                let dds_file = encode_dds(BC1, to_open_array(cast[ptr UncheckedArray[byte]](cmp_tex.data), 0, cmp_tex.size - 1), w, h, 1)
+                let sz = 4 + (sizeof dds_file.header) + dds_file.data_size
+                info &"Writing '{tex_data.kind}' texture to '{file_name}' ({sz}/{sz/1024:.2f}kB/{sz/1024/1024:.2f}MB)"
+                dds_file.write(file_name)
+
                 # var file = open_file_stream(file_name, fmWrite)
                 # file.write_data(cmp_tex.data, cmp_tex.size)
                 # close file

@@ -6,7 +6,7 @@
 # [data2] - ptr byte      (for texture/cubemap/volume texture)
 
 import
-    std/tables,
+    std/[streams, tables],
     common
 from ispctc import CompressionKind
 
@@ -17,12 +17,12 @@ converter make_fourcc(fcc: array[4, char]): uint32 =
     ((uint32 fcc[3]) shl 24)
 
 const
-    DDSMagic*: uint32 = ['D', 'D', 'S', ' ']
+    DDSMagic: uint32 = ['D', 'D', 'S', ' ']
     DDSHeaderSize      = 124
     DDSPixelFormatSize = 32
 
 type
-    DDSFlag* {.size: sizeof(uint32).} = enum
+    DDSFlag {.size: sizeof(uint32).} = enum
         Caps        = 0x0000_0001
         Height      = 0x0000_0002
         Width       = 0x0000_0004
@@ -32,7 +32,7 @@ type
         LinearSize  = 0x0008_0000
         Depth       = 0x0080_0000
 
-    DDSPixelFormatFlag* {.size: sizeof(uint32).} = enum
+    DDSPixelFormatFlag {.size: sizeof(uint32).} = enum
         AlphaPixels = 0x0000_0001
         Alpha       = 0x0000_0002
         Palette8    = 0x0000_0020
@@ -44,12 +44,12 @@ type
         Luminance   = 0x0002_0000
         LuminanceA  = 0x0002_0001
 
-    DDSSurfaceFlag* {.size: sizeof(uint32).} = enum
+    DDSSurfaceFlag {.size: sizeof(uint32).} = enum
         Cubemap = 0x0000_0008
         Texture = 0x0000_1000
         Mipmap  = 0x0040_0000
 
-    DDSCubemapFlag* {.size: sizeof(uint32).} = enum
+    DDSCubemapFlag {.size: sizeof(uint32).} = enum
         Cubemap          = 0x0000_0200
         CubemapPositiveX = 0x0000_0400
         CubemapNegativeX = 0x0000_0800
@@ -59,7 +59,7 @@ type
         CubemapNegativeZ = 0x0000_8000
         Volume           = 0x0020_0000
 
-    DXGIFormat* {.size: sizeof(uint32).} = enum
+    DXGIFormat {.size: sizeof(uint32).} = enum
         Unknown       = 0
         R8G8B8A8UNorm = 28
         BC1UNorm      = 71
@@ -157,7 +157,9 @@ type
         magic*       : uint32 = DDSMagic
         header*      : DDSHeader
         dxt10_header*: DDSHeaderDXT10
-        data*, data2*: CArray[byte]
+        data*, data2*: ptr byte
+        data_size*   : int
+        data_size2*  : int
 
 func pixel_format(flags: DDSPixelFormatFlag; fourcc, cbc, rm, gm, bm, am: uint32): DDSPixelFormat =
     DDSPixelFormat(
@@ -183,7 +185,7 @@ const PixelFormats = {
     ASTC: pixel_format(FourCC, ['A', 'S', 'T', 'C' ], 0, 0, 0, 0, 0), # No standard FOURCC
 }.to_table
 
-converter compression_kind_to_pixel_format(kind: CompressionKind): DXGIFormat =
+func compression_to_format(kind: CompressionKind): DXGIFormat =
     case kind
     of NoneRGB, NoneRGBA: R8G8B8A8UNorm
     of BC1 : BC1UNorm
@@ -200,24 +202,53 @@ func calc_mip_size(w, h, block_size: uint32): uint32 =
     result = max(1'u32, (w + 3) div 4) * max(1'u32, (h + 3) div 4)
     result *= block_size
 
-proc encode_dds*(kind: CompressionKind; data: openArray[byte]; w, h, mip_count: int): DDSFile =
+proc encode_dds*(kind: CompressionKind; data: openArray[byte]; w, h, mip_count: SomeUnsignedInt): DDSFile =
+    let bpp = 4'u32 # TODO
+
     var
+        pixel_format = PixelFormats[kind] # pixel_format(FourCC, make_fourcc ['D', 'X', '1', '0'], 0, 0, 0, 0, 0)
         pitch = 0'u32
         flags = Caps or Height or Width or PixelFormat
     if kind == NoneRGB or kind == NoneRGBA:
-        flags = flags or Pitch or LinearSize
+        flags = flags or Pitch
+        pitch = (w * bpp) div 8
+    else:
+        flags = flags or LinearSize
+        pitch = (w * h * bpp) div 8
     if mip_count > 1:
         flags = flags or MipmapCount
 
-    result.header = DDSHeader(
-        flags               : flags,
-        width               : uint32 w,
-        height              : uint32 h,
-        pitch_or_linear_size: pitch,
-        mipmap_count        : uint32 mip_count,
-        pf                  : PixelFormats[kind],
-        surface_flags       : if mip_count > 1: Mipmap else: Texture,
+    result = DDSFile(
+        data: data[0].addr,
+        data_size: data.len,
+        header: DDSHeader(
+            flags               : flags,
+            width               : uint32 w,
+            height              : uint32 h,
+            pitch_or_linear_size: pitch,
+            mipmap_count        : uint32 mip_count,
+            pf                  : pixel_format,
+            surface_flags       : if mip_count > 1: Mipmap else: Texture,
+        ),
+        dxt10_header: DDSHeaderDXT10(
+            dxgi_format       : compression_to_format kind,
+            resource_dimension: Texture2D,
+            array_size        : 1,
+        ),
     )
+
+proc write*(dds_file: DDSFile; file_name: string) =
+    assert dds_file.header.size == DDSHeaderSize
+
+    let magic = DDSMagic
+    var file = open_file_stream(file_name, fmWrite)
+    file.write_data(magic.addr                , sizeof DDSMagic)
+    file.write_data(dds_file.header.addr      , sizeof DDSHeader)
+    if dds_file.header.pf.fourcc == ['D', 'X', '1', '0']:
+        file.write_data(dds_file.dxt10_header.addr, sizeof DDSHeaderDXT10)
+    file.write_data(dds_file.data             , dds_file.data_size)
+    close file
+    quit 0
 
 static:
     assert (sizeof DDSHeader)      == DDSHeaderSize
