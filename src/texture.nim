@@ -63,7 +63,7 @@ proc `=destroy`*(img: Image) =
     if img.data != nil:
         free_image(img.data)
 
-proc load_image*(data: ptr uint8; len: SomeInteger): Image =
+proc load_image*(data: ptr uint8; len: SomeInteger; bpp = 4): Image =
     var w, h, chan: cint
-    let data = load_image(data, cint len, w.addr, h.addr, chan.addr, 4)
+    let data = load_image(data, cint len, w.addr, h.addr, chan.addr, cint bpp)
     Image(data: data, w: w, h: h, size: 4*w*h, channels: chan)

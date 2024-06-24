@@ -104,7 +104,6 @@ type
         Opaque
         Custom
 
-
 template flag_or(flag) =
     func `or`*(a, b: `flag`): `flag` {.warning[HoleEnumConv]: off.} =
         `flag` ((uint a) or (uint b))
@@ -172,18 +171,18 @@ func pixel_format(flags: DDSPixelFormatFlag; fourcc, cbc, rm, gm, bm, am: uint32
         abit_mask    : am,
     )
 
-const PixelFormats = {
+const PixelFormats = to_table {
     NoneRGB : pixel_format(RGB , ['\0', '\0', '\0', '\0'], 24, 0x0000_00FF, 0x0000_FF00, 0x00FF_0000, 0),
     NoneRGBA: pixel_format(RGBA, ['\0', '\0', '\0', '\0'], 32, 0x0000_00FF, 0x0000_FF00, 0x00FF_0000, 0xFF00_0000'u32),
-    BC1 : pixel_format(FourCC, ['D', 'X', 'T', '1' ], 0, 0, 0, 0, 0),
-    BC3 : pixel_format(FourCC, ['D', 'X', 'T', '4' ], 0, 0, 0, 0, 0), # DXT5 without alpha
-    BC4 : pixel_format(FourCC, ['B', 'C', '4', 'U' ], 0, 0, 0, 0, 0),
-    BC5 : pixel_format(FourCC, ['B', 'C', '5', 'U' ], 0, 0, 0, 0, 0),
-    BC6H: pixel_format(FourCC, ['B', 'C', '6', 'H' ], 0, 0, 0, 0, 0),
-    BC7 : pixel_format(FourCC, ['B', 'C', '7', '\0'], 0, 0, 0, 0, 0), # Also "BC7L"?
-    ETC1: pixel_format(FourCC, ['E', 'T', 'C', '1' ], 0, 0, 0, 0, 0), # No standard FOURCC
-    ASTC: pixel_format(FourCC, ['A', 'S', 'T', 'C' ], 0, 0, 0, 0, 0), # No standard FOURCC
-}.to_table
+    BC1 : pixel_format(FourCC, ['D', 'X', 'T', '1'], 0, 0, 0, 0, 0),
+    BC3 : pixel_format(FourCC, ['D', 'X', 'T', '4'], 0, 0, 0, 0, 0), # DXT5 without alpha
+    BC4 : pixel_format(FourCC, ['A', 'T', 'I', '1'], 0, 0, 0, 0, 0),
+    BC5 : pixel_format(FourCC, ['A', 'T', 'I', '2'], 0, 0, 0, 0, 0),
+    BC6H: pixel_format(FourCC, ['D', 'X', '1', '0'], 0, 0, 0, 0, 0),
+    BC7 : pixel_format(FourCC, ['D', 'X', '1', '0'], 0, 0, 0, 0, 0),
+    ETC1: pixel_format(FourCC, ['D', 'X', '1', '0'], 0, 0, 0, 0, 0),
+    ASTC: pixel_format(FourCC, ['D', 'X', '1', '0'], 0, 0, 0, 0, 0),
+}
 
 func compression_to_format(kind: CompressionKind): DXGIFormat =
     case kind
@@ -202,19 +201,26 @@ func calc_mip_size(w, h, block_size: uint32): uint32 =
     result = max(1'u32, (w + 3) div 4) * max(1'u32, (h + 3) div 4)
     result *= block_size
 
-proc encode_dds*(kind: CompressionKind; data: openArray[byte]; w, h, mip_count: SomeUnsignedInt): DDSFile =
-    let bpp = 4'u32 # TODO
+func get_bpp(kind: CompressionKind): int =
+    case kind
+    of BC1, BC4, ETC1: 4
+    of BC3, BC5, BC6H, BC7, ASTC: 8
+    of NoneRGB : 24
+    of NoneRGBA: 32
 
-    var
-        pixel_format = PixelFormats[kind] # pixel_format(FourCC, make_fourcc ['D', 'X', '1', '0'], 0, 0, 0, 0, 0)
-        pitch = 0'u32
-        flags = Caps or Height or Width or PixelFormat
+proc encode_dds*(kind: CompressionKind; data: openArray[byte]; w, h, mip_count: int): DDSFile =
+    let bpp = get_bpp kind
+    let pixel_format = PixelFormats[kind]
+
+    var pitch: int
+    var flags = Caps or Height or Width or PixelFormat
     if kind == NoneRGB or kind == NoneRGBA:
         flags = flags or Pitch
         pitch = (w * bpp) div 8
     else:
         flags = flags or LinearSize
         pitch = (w * h * bpp) div 8
+
     if mip_count > 1:
         flags = flags or MipmapCount
 
@@ -225,7 +231,7 @@ proc encode_dds*(kind: CompressionKind; data: openArray[byte]; w, h, mip_count: 
             flags               : flags,
             width               : uint32 w,
             height              : uint32 h,
-            pitch_or_linear_size: pitch,
+            pitch_or_linear_size: uint32 pitch,
             mipmap_count        : uint32 mip_count,
             pf                  : pixel_format,
             surface_flags       : if mip_count > 1: Mipmap else: Texture,
@@ -242,11 +248,11 @@ proc write*(dds_file: DDSFile; file_name: string) =
 
     let magic = DDSMagic
     var file = open_file_stream(file_name, fmWrite)
-    file.write_data(magic.addr                , sizeof DDSMagic)
-    file.write_data(dds_file.header.addr      , sizeof DDSHeader)
+    file.write_data(magic.addr          , sizeof DDSMagic)
+    file.write_data(dds_file.header.addr, sizeof DDSHeader)
     if dds_file.header.pf.fourcc == ['D', 'X', '1', '0']:
         file.write_data(dds_file.dxt10_header.addr, sizeof DDSHeaderDXT10)
-    file.write_data(dds_file.data             , dds_file.data_size)
+    file.write_data(dds_file.data, dds_file.data_size)
     close file
     quit 0
 

@@ -58,10 +58,10 @@ type
         refine_iterations  : cint
 
     CompressionProfile* = object
-        case kind: CompressionKind
+        case kind*: CompressionKind
         of BC6H: bc6h: BC6HEncSettings
         of BC7 : bc7 : BC7EncSettings
-        of ETC1: etc : ETCEncSettings
+        of ETC1: etc1: ETCEncSettings
         of ASTC: astc: ASTCEncSettings
         else: discard
 
@@ -73,21 +73,21 @@ type
 
 # BC7 with ignored alpha
 proc get_profile_ultra_fast*(settings: ptr BC7EncSettings) {.importc: "GetProfile_ultrafast".}
-proc get_profile_very_fast*(settings: ptr BC7EncSettings)  {.importc: "GetProfile_veryfast" .}
-proc get_profile_fast*(settings: ptr BC7EncSettings)       {.importc: "GetProfile_fast"     .}
-proc get_profile_basic*(settings: ptr BC7EncSettings)      {.importc: "GetProfile_basic"    .}
-proc get_profile_slow*(settings: ptr BC7EncSettings)       {.importc: "GetProfile_slow"     .}
+proc get_profile_very_fast*( settings: ptr BC7EncSettings) {.importc: "GetProfile_veryfast" .}
+proc get_profile_fast*(      settings: ptr BC7EncSettings) {.importc: "GetProfile_fast"     .}
+proc get_profile_basic*(     settings: ptr BC7EncSettings) {.importc: "GetProfile_basic"    .}
+proc get_profile_slow*(      settings: ptr BC7EncSettings) {.importc: "GetProfile_slow"     .}
 
 proc get_profile_alpha_ultra_fast*(settings: ptr BC7EncSettings) {.importc: "GetProfile_alpha_ultrafast".}
-proc get_profile_alpha_very_fast*(settings: ptr BC7EncSettings)  {.importc: "GetProfile_alpha_veryfast" .}
-proc get_profile_alpha_fast*(settings: ptr BC7EncSettings)       {.importc: "GetProfile_alpha_fast"     .}
-proc get_profile_alpha_basic*(settings: ptr BC7EncSettings)      {.importc: "GetProfile_alpha_basic"    .}
-proc get_profile_alpha_slow*(settings: ptr BC7EncSettings)       {.importc: "GetProfile_alpha_slow"     .}
+proc get_profile_alpha_very_fast*( settings: ptr BC7EncSettings) {.importc: "GetProfile_alpha_veryfast" .}
+proc get_profile_alpha_fast*(      settings: ptr BC7EncSettings) {.importc: "GetProfile_alpha_fast"     .}
+proc get_profile_alpha_basic*(     settings: ptr BC7EncSettings) {.importc: "GetProfile_alpha_basic"    .}
+proc get_profile_alpha_slow*(      settings: ptr BC7EncSettings) {.importc: "GetProfile_alpha_slow"     .}
 
 proc get_profile_bc6h_very_fast*(settings: ptr BC6HEncSettings) {.importc: "GetProfile_bc6h_veryfast".}
-proc get_profile_bc6h_fast*(settings: ptr BC6HEncSettings)      {.importc: "GetProfile_bc6h_fast"    .}
-proc get_profile_bc6h_basic*(settings: ptr BC6HEncSettings)     {.importc: "GetProfile_bc6h_basic"   .}
-proc get_profile_bc6h_slow*(settings: ptr BC6HEncSettings)      {.importc: "GetProfile_bc6h_slow"    .}
+proc get_profile_bc6h_fast*(     settings: ptr BC6HEncSettings) {.importc: "GetProfile_bc6h_fast"    .}
+proc get_profile_bc6h_basic*(    settings: ptr BC6HEncSettings) {.importc: "GetProfile_bc6h_basic"   .}
+proc get_profile_bc6h_slow*(     settings: ptr BC6HEncSettings) {.importc: "GetProfile_bc6h_slow"    .}
 proc get_profile_bc6h_very_slow*(settings: ptr BC6HEncSettings) {.importc: "GetProfile_bc6h_veryslow".}
 
 proc get_profile_etc_slow*(settings: ptr ETCEncSettings) {.importc: "GetProfile_etc_slow".}
@@ -106,10 +106,10 @@ proc get_profile_astc_alpha_slow*(settings: ptr ASTCEncSettings; bw, bh: cint) {
 #  - the blocks are stored in raster scan order (natural CPU texture layout)
 #  - use the GetProfile_* functions to select various speed/quality tradeoffs
 #  - the RGB profiles are slightly faster as they ignore the alpha channel
-proc compress_blocks_bc1*(src: ptr RGBASurface; dst: ptr byte)                                 {.importc: "CompressBlocksBC1" .}
-proc compress_blocks_bc3*(src: ptr RGBASurface; dst: ptr byte)                                 {.importc: "CompressBlocksBC3" .}
-proc compress_blocks_bc4*(src: ptr RGBASurface; dst: ptr byte)                                 {.importc: "CompressBlocksBC4" .}
-proc compress_blocks_bc5*(src: ptr RGBASurface; dst: ptr byte)                                 {.importc: "CompressBlocksBC5" .}
+proc compress_blocks_bc1*( src: ptr RGBASurface; dst: ptr byte)                                {.importc: "CompressBlocksBC1" .}
+proc compress_blocks_bc3*( src: ptr RGBASurface; dst: ptr byte)                                {.importc: "CompressBlocksBC3" .}
+proc compress_blocks_bc4*( src: ptr RGBASurface; dst: ptr byte)                                {.importc: "CompressBlocksBC4" .}
+proc compress_blocks_bc5*( src: ptr RGBASurface; dst: ptr byte)                                {.importc: "CompressBlocksBC5" .}
 proc compress_blocks_bc6h*(src: ptr RGBASurface; dst: ptr byte; settings: ptr BC6HEncSettings) {.importc: "CompressBlocksBC6H".}
 proc compress_blocks_bc7*( src: ptr RGBASurface; dst: ptr byte; settings: ptr BC7EncSettings)  {.importc: "CompressBlocksBC7" .}
 proc compress_blocks_etc1*(src: ptr RGBASurface; dst: ptr byte; settings: ptr ETCEncSettings)  {.importc: "CompressBlocksETC1".}
@@ -161,7 +161,7 @@ proc get_profile*(kind: CompressionKind; mode = Basic; with_alpha = true; block_
     of ETC1:
         if mode != Slow:
             warning &"The only mode available for ETC1 is '{Slow}' (got '{mode}')"
-        get_profile_etc_slow result.etc.addr
+        get_profile_etc_slow result.etc1.addr
     of ASTC:
         if mode != Fast or (with_alpha and mode != Fast):
             let alpha_msg = if with_alpha: "with alpha" else: "without alpha"
@@ -177,27 +177,34 @@ proc get_profile*(kind: CompressionKind; mode = Basic; with_alpha = true; block_
     else:
         discard
 
-proc alloc_img(w, h: SomeUnsignedInt): RGBASurface =
-    result.width  = w
-    result.height = h
-    result.stride = 4 * w
+proc alloc_img(w, h, bpp: int): RGBASurface =
+    result.width  = uint32 w
+    result.height = uint32 h
+    result.stride = uint32(bpp * w)
     result.data   = cast[ptr byte](alloc(result.height * result.stride))
 
-proc compress*(profile: CompressionProfile; src: ptr byte; w, h: SomeUnsignedInt): CompressedTexture =
+proc compress*(profile: CompressionProfile; src: ptr byte; w, h, bpp: int): CompressedTexture =
     const BlockWidth  = 4
     const BlockHeight = 4
     let bw = BlockWidth  * ceil_div(w, BlockWidth)
     let bh = BlockHeight * ceil_div(h, BlockHeight)
     let block_count = int (bw div BlockWidth) * (bw div BlockHeight)
 
-    let raw_img   = RGBASurface(data: src, width: w, height: h, stride: 4*w)
-    var edged_img = alloc_img(bw, bh)
-    copy_mem(edged_img.data, src, int(4 * bw * bh))
+    let raw_img   = RGBASurface(data: src, width: uint32 w, height: uint32 h, stride: uint32(bpp * w))
+    var edged_img = alloc_img(bw, bh, bpp) # TODO: fix the edging for non power-of-two
+    copy_mem(edged_img.data, src, int(edged_img.stride * edged_img.height))
     # replicate_borders(edged_img.addr, raw_img.addr, cint bw, cint bh, 32)
 
     result.size = (bytes_per_block profile.kind) * block_count
     result.data = cast[ptr byte](alloc result.size)
     case profile.kind
-    of BC1: compress_blocks_bc1(edged_img.addr, result.data)
-    of BC7: compress_blocks_bc7(edged_img.addr, result.data, profile.bc7.addr)
-    else: assert false
+    of BC1 : compress_blocks_bc1( edged_img.addr, result.data)
+    of BC3 : compress_blocks_bc3( edged_img.addr, result.data)
+    of BC4 : compress_blocks_bc4( edged_img.addr, result.data)
+    of BC5 : compress_blocks_bc5( edged_img.addr, result.data)
+    of BC6H: compress_blocks_bc6h(edged_img.addr, result.data, profile.bc6h.addr)
+    of BC7 : compress_blocks_bc7( edged_img.addr, result.data, profile.bc7.addr)
+    of ETC1: compress_blocks_etc1(edged_img.addr, result.data, profile.etc1.addr)
+    of ASTC: compress_blocks_astc(edged_img.addr, result.data, profile.astc.addr)
+    of NoneRGB, NoneRGBA:
+        assert false, &"Should not call compress with '{profile.kind}'"

@@ -241,18 +241,19 @@ proc write_materials(scene: ptr Scene; file: Stream; output_name: string; verbos
                 file_name.remove_suffix ".nai"
                 file_name &= &"-{to_lower_ascii $tex_data.kind}.dds"
 
-                let raw_tex = load_image(tex.data, tex.width)
-                let w = uint32 raw_tex.w
-                let h = uint32 raw_tex.h
+                let
+                    raw_tex = load_image(tex.data, tex.width, 4)
+                    w = raw_tex.w
+                    h = raw_tex.h
 
                 # var file = open_file_stream(file_name, fmWrite)
                 # file.write_data(tex.data[0].addr, int tex.width)
                 # close file
 
                 let profile = BC1.get_profile()
-                let cmp_tex = profile.compress(cast[ptr byte](raw_tex.data), w, h)
+                let cmp_tex = profile.compress(cast[ptr byte](raw_tex.data), w, h, raw_tex.channels)
 
-                let dds_file = encode_dds(BC1, to_open_array(cast[ptr UncheckedArray[byte]](cmp_tex.data), 0, cmp_tex.size - 1), w, h, 1)
+                let dds_file = encode_dds(profile.kind, to_open_array(cast[ptr UncheckedArray[byte]](cmp_tex.data), 0, cmp_tex.size - 1), w, h, 1)
                 let sz = 4 + (sizeof dds_file.header) + dds_file.data_size
                 info &"Writing '{tex_data.kind}' texture to '{file_name}' ({sz}/{sz/1024:.2f}kB/{sz/1024/1024:.2f}MB)"
                 dds_file.write(file_name)
