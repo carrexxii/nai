@@ -97,16 +97,8 @@ proc get_assimp_error*(): cstring {.importc: "aiGetErrorString".}
 
 #[ -------------------------------------------------------------------- ]#
 
-proc red*    (s: string): string = "\e[31m" & s & "\e[0m"
-proc green*  (s: string): string = "\e[32m" & s & "\e[0m"
-proc yellow* (s: string): string = "\e[33m" & s & "\e[0m"
-proc blue*   (s: string): string = "\e[34m" & s & "\e[0m"
-proc magenta*(s: string): string = "\e[35m" & s & "\e[0m"
-proc cyan*   (s: string): string = "\e[36m" & s & "\e[0m"
-
-proc info*(msg: string)    = echo        &"{msg}"
-proc error*(msg: string)   = echo red    &"Error: {msg}"
-proc warning*(msg: string) = echo yellow &"Warning: {msg}"
-
 template to_oa*(arr, c): untyped =
     to_open_array(arr, 0, int c - 1)
+
+import info
+export info, warning, error

@@ -1,5 +1,5 @@
 import
-    std/[streams, parseopt, parsecfg, paths, tables, strutils, enumerate],
+    std/[streams, parseopt, parsecfg, paths, tables, strutils],
     common, ispctc, mesh, texture, material, animation, light, camera, header, dds
 from std/os       import get_app_dir
 from std/files    import file_exists
@@ -255,12 +255,9 @@ proc write_materials(scene: ptr Scene; file: Stream; output_name: string; verbos
 
                 let dds_file = encode_dds(profile.kind, to_open_array(cast[ptr UncheckedArray[byte]](cmp_tex.data), 0, cmp_tex.size - 1), w, h, 1)
                 let sz = 4 + (sizeof dds_file.header) + dds_file.data_size
-                info &"Writing '{tex_data.kind}' texture to '{file_name}' ({sz}/{sz/1024:.2f}kB/{sz/1024/1024:.2f}MB)"
+                if verbose:
+                    info &"Writing '{tex_data.kind}' texture to '{file_name}' ({sz}/{sz/1024:.2f}kB/{sz/1024/1024:.2f}MB)"
                 dds_file.write(file_name)
-
-                # var file = open_file_stream(file_name, fmWrite)
-                # file.write_data(cmp_tex.data, cmp_tex.size)
-                # close file
             else:
                 assert false
 
@@ -391,7 +388,6 @@ when is_main_module:
         out_file: Path = cwd
         in_file : Path
         cfg_file: Path
-        verbose : bool = false
         ignore  : bool = false
         quiet   : bool = false
     for kind, key, val in get_opt options:
@@ -426,24 +422,24 @@ when is_main_module:
     parse_config cfg_file
 
     var scene = import_file($in_file, GenBoundingBoxes or RemoveRedundantMaterials)
-    if verbose:
-        info &"Scene '{scene.name}' ('{in_file}' -> '{out_file}')"
-        info &"\tMeshes     -> {scene.mesh_count}"
-        info &"\tMaterials  -> {scene.material_count}"
-        info &"\tAnimations -> {scene.animation_count}"
-        info &"\tTextures   -> {scene.texture_count}"
-        info &"\tLights     -> {scene.light_count}"
-        info &"\tCameras    -> {scene.camera_count}"
-        info &"\tSkeletons  -> {scene.skeleton_count}"
+    info &"Scene '{scene.name}' ('{in_file}' -> '{out_file}')"
+    info &"\tMeshes     -> {scene.mesh_count}"
+    info &"\tMaterials  -> {scene.material_count}"
+    info &"\tAnimations -> {scene.animation_count}"
+    info &"\tTextures   -> {scene.texture_count}"
+    info &"\tLights     -> {scene.light_count}"
+    info &"\tCameras    -> {scene.camera_count}"
+    info &"\tSkeletons  -> {scene.skeleton_count}"
 
     if validate(scene, not quiet) != 0 and not ignore:
         error &"File '{in_file}' contains unsupported components (use -f/--force/--ignore to continue regardless)"
         quit 1
 
-    var file = open_file_stream($out_file, fmWrite)
-    write_header(scene, file)
-    write_meshes(scene, file, verbose)
-    write_materials(scene, file, $out_file, verbose)
-    close file
+    output_descrip([("Header", sizeof Header), ("Vertices", 2000*32), ("Textures", 2000000)])
+    # var file = open_file_stream($out_file, fmWrite)
+    # write_header(scene, file)
+    # write_meshes(scene, file, verbose)
+    # write_materials(scene, file, $out_file, verbose)
+    # close file
 
     free_scene scene

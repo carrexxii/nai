@@ -185,11 +185,11 @@ template `or`(a, b: TextureFlag): TextureFlag {.warning[HoleEnumConv]: off.} =
     TextureFlag ((cint a) or (cint b))
 
 func `$`(prop: MaterialProperty): string =
-    let key = green &"\"{prop.key}\""
+    let key = &"\"{prop.key}\""
     result = &"Material property ({key}) of kind {prop.kind}: "
     result &= &"index {prop.index}; data_length {prop.data_length}"
     if prop.tex_kind != None:
-        result &= cyan &" ({to_lower_ascii $prop.tex_kind} texture)"
+        result &= &" ({to_lower_ascii $prop.tex_kind} texture)"
 
 #[ -------------------------------------------------------------------- ]#
 
@@ -288,4 +288,4 @@ proc `$`*(mtl: Material): string =
             let data = mtl.addr.texture kind
             if is_some data:
                 let data = get data
-                result &= cyan &"    {count} {kind} ([{data.uv_index}] {data.path})\n"
+                result &= &"    {count} {kind} ([{data.uv_index}] {data.path})\n"
