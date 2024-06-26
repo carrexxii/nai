@@ -71,6 +71,8 @@ type
 
 #[ -------------------------------------------------------------------- ]#
 
+{.push dynlib:"libispc_texcomp.so".}
+
 # BC7 with ignored alpha
 proc get_profile_ultra_fast*(settings: ptr BC7EncSettings) {.importc: "GetProfile_ultrafast".}
 proc get_profile_very_fast*( settings: ptr BC7EncSettings) {.importc: "GetProfile_veryfast" .}
@@ -116,6 +118,8 @@ proc compress_blocks_etc1*(src: ptr RGBASurface; dst: ptr byte; settings: ptr ET
 proc compress_blocks_astc*(src: ptr RGBASurface; dst: ptr byte; settings: ptr ASTCEncSettings) {.importc: "CompressBlocksASTC".}
 
 proc replicate_borders*(dst_slice, src_tex: ptr RGBASurface; x, y, bpp: cint) {.importc: "ReplicateBorders".}
+
+{.pop.}
 
 #[ -------------------------------------------------------------------- ]#
 

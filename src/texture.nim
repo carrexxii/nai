@@ -28,6 +28,12 @@ Texture '{texture.filename}' ({texture.width}x{texture.height}):
 
 #[ -------------------------------------------------------------------- ]#
 
+# For tcc compat
+import std/compilesettings
+from std/strutils import contains
+when query_setting(commandLine).contains "--cc:tcc":
+    {.emit: "#define STBI_NO_SIMD".}
+
 {.emit: &"""
 #define STB_IMAGE_IMPLEMENTATION
 #define STB_IMAGE_WRITE_IMPLEMENTATION

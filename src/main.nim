@@ -88,11 +88,13 @@ type Scene = object
 # TODO: variable index size with an 'auto` option that detects size needed
 # TODO: import_file interface for memory load
 #       property imports
+{.push dynlib: "lib/libassimp.so".}
 proc is_extension_supported(ext: cstring): bool               {.importc: "aiIsExtensionSupported".}
 proc get_extension_list(lst: ptr AIString)                    {.importc: "aiGetExtensionList"    .}
 proc import_file(path: cstring; flags: uint32): ptr Scene     {.importc: "aiImportFile"          .}
 proc process(scene: ptr Scene; flags: ProcessFlag): ptr Scene {.importc: "aiApplyPostProcessing" .}
 proc free_scene(scene: ptr Scene)                             {.importc: "aiReleaseImport"       .}
+{.pop.}
 
 proc import_file(path: string; flags: ProcessFlag): ptr Scene =
     result = import_file(path.cstring, flags.uint32)

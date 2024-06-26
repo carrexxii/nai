@@ -1,14 +1,11 @@
 import std/[os, strformat, strutils, sequtils, enumerate]
 
 const
-    AssimpFlags = "-DASSIMP_INSTALL=OFF -DASSIMP_BUILD_TESTS=OFF -DUSE_STATIC_CRT=ON -DBUILD_SHARED_LIBS=OFF " &
-                  "-DASSIMP_BUILD_ALL_EXPORTERS_BY_DEFAULT=OFF -DASSIMP_INSTALL_PDB=OFF -DASSIMP_BUILD_ZLIB=ON " &
-                  "-DASSIMP_WARNINGS_AS_ERRORS=OFF"
-    CompressonatorFlags = "-DOPTION_ENABLE_ALL_APPS=OFF -DOPTION_BUILD_CMP_SDK=ON -DOPTION_BUILD_EXR=OFF"
+    AssimpFlags = "-DASSIMP_INSTALL=OFF -DASSIMP_BUILD_TESTS=OFF -DUSE_STATIC_CRT=ON -DASSIMP_WARNINGS_AS_ERRORS=OFF " &
+                  "-DASSIMP_BUILD_ALL_EXPORTERS_BY_DEFAULT=OFF -DASSIMP_INSTALL_PDB=OFF -DASSIMP_BUILD_ZLIB=ON"
 
 let
-    target = "cpp"
-    cwd    = get_current_dir()
+    cwd = get_current_dir()
 
     bin_path   = &"./{(to_exe cwd.split('/')[^1])}"
     src_path   = "./src"
@@ -23,15 +20,14 @@ let
          patch: "",
          cmds : @[&"cmake -B . -S . {AssimpFlags}",
                   &"cmake --build . --config release -j8",
-                  &"cp lib/*.a ../",
-                  &"cp contrib/zlib/*.a ../",]),
-        (src  : "https://github.com/GPUOpen-Tools/compressonator",
-         dst  : lib_path / "compressonator",
-         tag  : "V4.5.52",
-         patch: "compressonator.patch",
-         cmds : @[&"cmake -B . -S . {CompressonatorFlags}",
-                  &"cmake --build . --config release -j8",
-                  &"cp lib/*.a ../",])
+                  &"mv bin/libassimp.so ../",
+                  &"mv contrib/zlib/*.a ../",]),
+        (src  : "https://github.com/GameTechDev/ISPCTextureCompressor/",
+         dst  : lib_path / "ispctc",
+         tag  : "691513b4fb406eccfc2f7d7f8213c8505ff5b897",
+         patch: "ispctc.patch",
+         cmds : @[&"make -f Makefile.linux -j8",
+                  &"mv build/* ../",])
     ]
     entry =
         if file_exists &"{src_path}/main.nim":
@@ -39,13 +35,12 @@ let
         else:
             src_path / &"{cwd.split('/')[^1]}.nim"
     linker_libs = @[
-        "libassimp.a",
         "libzlibstatic.a",
-        "libispc_texcomp.so",
     ]
 
-    debug_flags   = &"--nimCache:{build_path} -o:{bin_path}"
-    release_flags = &"--cc:gcc --nimCache:{build_path} -o:{bin_path} -d:release -d:danger"
+    debug_flags   = &"--cc:tcc --hints:off --nimCache:{build_path} -o:{bin_path} " &
+                    &"--passL:\"-ldl -lm\" --tlsEmulation:on -d:useMalloc"
+    release_flags = &"--cc:gcc --nimCache:{build_path} -o:{bin_path} -d:release -d:danger --opt:speed"
     post_release = @[""]
 
 #[ -------------------------------------------------------------------- ]#
@@ -78,7 +73,7 @@ proc get_libs(): string =
     var libs: seq[string] = linker_libs
     if libs == @[]:
         for file in list_files lib_path:
-            if (file.ends_with ".so") or (file.ends_with ".a"):
+            if file.ends_with ".a":
                 libs.add file
     else:
         libs = linker_libs.map_it(lib_path / it)
@@ -103,10 +98,10 @@ task restore, "Fetch and build dependencies":
                 run cmd
 
 task build, "Build the project (debug build)":
-    run &"nim {target} --passL:\"{get_libs()}\" {debug_flags} {entry}"
+    run &"nim c --passL:\"{get_libs()}\" {debug_flags} {entry}"
 
 task release, "Build the project (release build)":
-    run &"nim {target} --passL:\"{get_libs()}\" {release_flags} {entry}"
+    run &"nim c --passL:\"{get_libs()}\" {release_flags} {entry}"
     for cmd in post_release:
         run cmd
 
@@ -116,6 +111,8 @@ task run, "Build and run with debug build":
 
 task test, "Run the project's tests":
     build_task()
+    if defined `dry-run`:
+        quit 0
 
     let files = (list_files tests_path).filter(proc (path: string): bool =
         not (path.endswith ".nai") and
