@@ -1,10 +1,10 @@
 import common
 
-type Camera* = object
+type AICamera* = object
     name*       : AIString
-    position*   : Vec3
-    up*         : Vec3
-    look_at*    : Vec3
+    position*   : AIVec3
+    up*         : AIVec3
+    look_at*    : AIVec3
     hfov*       : float32
     clip_near*  : float32
     clip_far*   : float32

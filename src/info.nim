@@ -1,16 +1,6 @@
 import
     std/[terminal, strutils, sequtils],
-    common, mesh
-
-var verbose* = false
-
-template write(args: varargs[untyped]) =
-    if verbose:
-        stdout.styled_write args
-
-proc info*(   msg: string) = write(fgWhite ,              msg, "\n")
-proc warning*(msg: string) = write(fgYellow, "Warning: ", msg, "\n")
-proc error*(  msg: string) = write(fgRed   , "Error: "  , msg, "\n")
+    common, assimp/assimp
 
 func bytes_to_string(bytes: int): string =
     if bytes >= 1024*1024:
@@ -34,12 +24,12 @@ proc output_descrip*(parts: openArray[(string, int)]) =
         inc colour
     let total = sections.foldl(a + b[2], 0)
 
-    write "\n"
+    stdout.styled_write "\n"
     for (bg, name, len) in sections:
         let name = &"{name} ({bytes_to_string len})"
         let len = max(1, int(len / total * size))
         if len < name.len:
-            write(fgBlack, bg, " ")
+            stdout.styled_write(fgBlack, bg, " ")
         else:
-            write(fgBlack, bg, center(name, len))
-    write "\n"
+            stdout.styled_write(fgBlack, bg, center(name, len))
+    stdout.styled_write "\n"

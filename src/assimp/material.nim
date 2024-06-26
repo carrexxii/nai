@@ -1,8 +1,30 @@
-import common
+import std/options, common
 from std/strutils import to_lower_ascii
 
+const AIMaxTextureHintLen* = 9
+
 type
-    TextureOp* {.size: sizeof(cint).} = enum
+    AITextureKind* {.size: sizeof(cint).} = enum
+        None
+        Diffuse
+        Specular
+        Ambient
+        Emissive
+        Height
+        Normals
+        Shininess
+        Opacity
+        Displacement
+        Lightmap
+        Reflection
+        EmissionColour
+        Metalness
+        DiffuseRoughness
+        Sheen
+        Clearcoat
+        Transmission
+
+    AITextureOp* {.size: sizeof(cint).} = enum
         Multiply
         Add
         Subtract
@@ -10,13 +32,13 @@ type
         SmoothAdd
         SignedAdd
 
-    TextureMapMode* {.size: sizeof(cint).} = enum
+    AITextureMapMode* {.size: sizeof(cint).} = enum
         Wrap
         Clamp
         Mirror
         Decal
 
-    TextureMapping* {.size: sizeof(cint).} = enum
+    AITextureMapping* {.size: sizeof(cint).} = enum
         UV
         Sphere
         Cylinder
@@ -24,7 +46,7 @@ type
         Plane
         Other
 
-    ShadingMode* {.size: sizeof(cint).} = enum
+    AIShadingMode* {.size: sizeof(cint).} = enum
         Flat
         Gouraud
         Phong
@@ -37,24 +59,24 @@ type
         Fresnel
         PBRBRDF
 
-    BlendMode* {.size: sizeof(cint).} = enum
+    AIBlendMode* {.size: sizeof(cint).} = enum
         Default
         Additive
 
-    PropertyKindInfo* {.size: sizeof(cint).} = enum
+    AIPropertyKindInfo* {.size: sizeof(cint).} = enum
         Float
         Double
         String
         Integer
         Buffer
 
-    TextureFlag {.size: sizeof(cint).} = enum
+    AITextureFlag {.size: sizeof(cint).} = enum
         None        = 0x0
         Invert      = 0x1
         UseAlpha    = 0x2
         IgnoreAlpha = 0x4
 
-    Matkey* {.size: sizeof(cstring).} = enum
+    AIMatkey* {.size: sizeof(cstring).} = enum
         Name                      = "?mat.name"
         TwoSided                  = "$mat.twosided"
         ShadingModel              = "$mat.shadingm"
@@ -124,43 +146,53 @@ type
     #     VolumeThicknessTexture    = (TextureKind.Transmission    , 1)
 
 type
-    Material* = object
-        properties*      : ptr UncheckedArray[ptr MaterialProperty]
+    AITexture* = object
+        width*      : uint32
+        height*     : uint32
+        format_hint*: array[AIMaxTextureHintLen, byte]
+        data*       : ptr UncheckedArray[AITexel]
+        filename*   : AIString
+
+    AITexel* = object
+        b, g, r, a: uint8
+
+    AIMaterial* = object
+        properties*      : ptr UncheckedArray[ptr AIMaterialProperty]
         properties_count*: uint32
         allocated_count* : uint32
 
-    MaterialProperty* = object
+    AIMaterialProperty* = object
         key        : AIString
-        tex_kind   : TextureKind # "semantic"
+        tex_kind   : AITextureKind # "semantic"
         index      : uint32
         data_length: uint32
-        kind       : PropertyKindInfo
+        kind       : AIPropertyKindInfo
         data       : ptr byte
 
-    UVTransform* {.packed.} = object
-        translation: Vec2
-        scaling    : Vec2
-        rotation   : Real
+    AIUVTransform* {.packed.} = object
+        translation: AIVec2
+        scaling    : AIVec2
+        rotation   : AIReal
 
-    TextureData* = object
-        kind*        : TextureKind
+    AITextureData* = object
+        kind*        : AITextureKind
         path*        : string
-        mapping*     : TextureMapping
+        mapping*     : AITextureMapping
         uv_index*    : int
-        blend_factor*: Real
-        texture_op*  : TextureOp
-        map_mode*    : TextureMapMode
-        flags*       : TextureFlag
+        blend_factor*: AIReal
+        texture_op*  : AITextureOp
+        map_mode*    : AITextureMapMode
+        flags*       : AITextureFlag
 
 const
     Unlit*               = NoShading
     DefaultMaterialName* = "DefaultMaterial"
-    MaxTextureKinds*     = (int high TextureKind) + 1
+    MaxTextureKinds*     = (int high AITextureKind) + 1
 
-template `or`(a, b: TextureFlag): TextureFlag {.warning[HoleEnumConv]: off.} =
+template `or`(a, b: AITextureFlag): AITextureFlag {.warning[HoleEnumConv]: off.} =
     TextureFlag ((cint a) or (cint b))
 
-func `$`(prop: MaterialProperty): string =
+func `$`(prop: AIMaterialProperty): string =
     let key = &"\"{prop.key}\""
     result = &"Material property ({key}) of kind {prop.kind}: "
     result &= &"index {prop.index}; data_length {prop.data_length}"
@@ -170,34 +202,34 @@ func `$`(prop: MaterialProperty): string =
 #[ -------------------------------------------------------------------- ]#
 
 using
-    pmtl    : ptr Material
+    pmtl    : ptr AIMaterial
     key     : cstring
-    prop_out: ptr ptr MaterialProperty
-    real_out: ptr UncheckedArray[Real]
+    prop_out: ptr ptr AIMaterialProperty
+    real_out: ptr UncheckedArray[AIReal]
     uint_out: ptr UncheckedArray[cuint]
 
-proc texture_type_to_string*(kind: TextureKind): cstring                                              {.importc: "aiTextureTypeToString"    .}
-proc get_material_property*(pmtl; key; kind, index: cuint; prop_out): AIReturn                        {.importc: "aiGetMaterialProperty"    .}
-proc get_material_float_array*(pmtl; key; kind, index: cuint; real_out; count: ptr cuint): AIReturn   {.importc: "aiGetMaterialFloatArray"  .}
-proc get_material_float*(pmtl; key; kind, index: cuint; real_out): AIReturn                           {.importc: "aiGetMaterialFloat"       .}
-proc get_material_integer_array*(pmtl; key; kind, index: cuint; uint_out; count: ptr cuint): AIReturn {.importc: "aiGetMaterialIntegerArray".}
-proc get_material_integer*(pmtl; key; kind, index: cuint; uint_out): AIReturn                         {.importc: "aiGetMaterialInteger"     .}
-proc get_material_color*(pmtl; key; kind, index: cuint; colour_out: ptr Colour): AIReturn             {.importc: "aiGetMaterialColor"       .}
-proc get_material_uv_transform*(pmtl; key; kind, index: cuint; trans_out: ptr UVTransform): AIReturn  {.importc: "aiGetMaterialUVTransform" .}
-proc get_material_string*(pmtl; key; kind, index: cuint; str_out: ptr AIString): AIReturn             {.importc: "aiGetMaterialString"      .}
-proc get_material_texture_count*(pmtl; kind: TextureKind): cuint                                      {.importc: "aiGetMaterialTextureCount".}
-proc get_material_texture*(pmtl; kind: TextureKind; index: cuint; path: ptr AIString;
-                           mapping: ptr TextureMapping = nil; uv_index: ptr cuint = nil; blend: ptr Real = nil;
-                           op: ptr TextureOp = nil; map_mode: ptr TextureMapMode = nil; flags: ptr TextureFlag = nil):
+proc texture_type_to_string*(kind: AITextureKind): cstring                                             {.importc: "aiTextureTypeToString"    .}
+proc get_material_property*(pmtl; key; kind, index: cuint; prop_out): AIReturn                         {.importc: "aiGetMaterialProperty"    .}
+proc get_material_float_array*(pmtl; key; kind, index: cuint; real_out; count: ptr cuint): AIReturn    {.importc: "aiGetMaterialFloatArray"  .}
+proc get_material_float*(pmtl; key; kind, index: cuint; real_out): AIReturn                            {.importc: "aiGetMaterialFloat"       .}
+proc get_material_integer_array*(pmtl; key; kind, index: cuint; uint_out; count: ptr cuint): AIReturn  {.importc: "aiGetMaterialIntegerArray".}
+proc get_material_integer*(pmtl; key; kind, index: cuint; uint_out): AIReturn                          {.importc: "aiGetMaterialInteger"     .}
+proc get_material_color*(pmtl; key; kind, index: cuint; colour_out: ptr AIColour): AIReturn            {.importc: "aiGetMaterialColor"       .}
+proc get_material_uv_transform*(pmtl; key; kind, index: cuint; trans_out: ptr AIUVTransform): AIReturn {.importc: "aiGetMaterialUVTransform" .}
+proc get_material_string*(pmtl; key; kind, index: cuint; str_out: ptr AIString): AIReturn              {.importc: "aiGetMaterialString"      .}
+proc get_material_texture_count*(pmtl; kind: AITextureKind): cuint                                     {.importc: "aiGetMaterialTextureCount".}
+proc get_material_texture*(pmtl; kind: AITextureKind; index: cuint; path: ptr AIString;
+                           mapping: ptr AITextureMapping = nil; uv_index: ptr cuint = nil; blend: ptr AIReal = nil;
+                           op: ptr AITextureOp = nil; map_mode: ptr AITextureMapMode = nil; flags: ptr AITextureFlag = nil):
                            AIReturn {.importc: "aiGetMaterialTexture".}
 
 #[ -------------------------------------------------------------------- ]#
 
-template `$`*(kind: TextureKind): string =
+template `$`*(kind: AITextureKind): string =
     $(texture_type_to_string kind)
 
-template gen_matkey_set(name; base_kind: Matkey) =
-    template `matkey name`(kind: TextureKind; n: int): auto = (base_kind, kind, n)
+template gen_matkey_set(name; base_kind: AIMatkey) =
+    template `matkey name`(kind: AITextureKind; n: int): auto = (base_kind, kind, n)
     template `matkey name diffuse`*     (n: int): auto = `matkey name`(Diffuse     , n)
     template `matkey name specular`*    (n: int): auto = `matkey name`(Specular    , n)
     template `matkey name ambient`*     (n: int): auto = `matkey name`(Ambient     , n)
@@ -221,47 +253,53 @@ gen_matkey_set(tex_map_axis  , TexMapAxisBase)
 gen_matkey_set(uv_transform  , UVTransformBase)
 gen_matkey_set(tex_flags     , TexFlagsBase)
 
-{.push inline.}
-
-proc texture_count*(mtl: ptr Material; kind: TextureKind): int =
+proc texture_count*(mtl: ptr AIMaterial; kind: AITextureKind): int =
     int (mtl.get_material_texture_count kind)
 
-proc texture*(mtl: ptr Material; kind: TextureKind; index = 0): Option[TextureData] =
+proc texture*(mtl: ptr AIMaterial; kind: AITextureKind; index = 0): Option[AITextureData] =
     var
-        data    : TextureData
+        data    : AITextureData
         path    : AIString
         uv_index: cuint
     if mtl.get_material_texture(kind, cuint index, path.addr, data.mapping.addr,
                                 uv_index.addr, data.blend_factor.addr, data.texture_op.addr,
                                 data.map_mode.addr, data.flags.addr) != Success:
-        none TextureData
+        none AITextureData
     else:
         data.kind     = kind
         data.path     = $path
         data.uv_index = int uv_index
         some data
 
-proc textures*(mtl: ptr Material): seq[TextureData] =
-    for kind in TextureKind:
+proc textures*(mtl: ptr AIMaterial): seq[AITextureData] =
+    for kind in AITextureKind:
         let count = mtl.texture_count kind
         for i in 0 ..< count:
             let data = mtl.texture kind
             if is_some data:
                 result.add (get data)
 
-{.pop.}
-
-proc `$`*(mtl: Material): string =
-    var prop: array[Matkey, ptr MaterialProperty]
+proc `$`*(mtl: AIMaterial): string =
+    var prop: array[AIMatkey, ptr AIMaterialProperty]
     result = &"Material ({mtl.allocated_count}B allocated for {mtl.properties_count} properties)\n"
     # for key in Matkey:
     #     if get_material_property(mtl.addr, $key, 0, 0, prop[key].addr) == Success:
     #         result &= cyan &"    {key}\n"
 
-    for kind in TextureKind:
+    for kind in AITextureKind:
         let count = mtl.addr.texture_count kind
         for i in 0 ..< count:
             let data = mtl.addr.texture kind
             if is_some data:
                 let data = get data
                 result &= &"    {count} {kind} ([{data.uv_index}] {data.path})\n"
+
+
+proc `$`*(texture: AITexture): string =
+    var fmt_hint = new_string AIMaxTextureHintLen
+    copy_mem(fmt_hint[0].addr, texture.format_hint[0].addr, AIMaxTextureHintLen)
+    result = &"""
+Texture '{texture.filename}' ({texture.width}x{texture.height}):
+    Format hint      -> {fmt_hint}
+    Data is internal -> {texture.data != nil}
+"""

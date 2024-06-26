@@ -1,6 +1,6 @@
 import
     std/[streams, parseopt, parsecfg, paths, tables, strutils],
-    common, ispctc, mesh, texture, material, animation, light, camera, nai, dds
+    common, assimp/assimp, ispctc, stbi, nai, info, dds
 from std/os       import get_app_dir
 from std/files    import file_exists
 from std/sequtils import foldl, to_seq
@@ -11,104 +11,8 @@ var
     layout_flags: LayoutMask
     vertex_flags: array[8, VertexKind]
 
-type
-    ProcessFlag {.size: sizeof(cuint).} = enum
-        CalcTangentSpace         = 0x0000_0001
-        JoinIdenticalVertices    = 0x0000_0002
-        MakeLeftHanded           = 0x0000_0004
-        Triangulate              = 0x0000_0008
-        RemoveComponent          = 0x0000_0010
-        GenNormals               = 0x0000_0020
-        GenSmoothNormals         = 0x0000_0040
-        SplitLargeMeshes         = 0x0000_0080
-        PreTransformVertices     = 0x0000_0100
-        LimitBoneWeights         = 0x0000_0200
-        ValidateDataStructure    = 0x0000_0400
-        ImproveCacheLocality     = 0x0000_0800
-        RemoveRedundantMaterials = 0x0000_1000
-        FixInfacingNormals       = 0x0000_2000
-        PopulateArmatureData     = 0x0000_4000
-        SortByPType              = 0x0000_8000
-        FindDegenerates          = 0x0001_0000
-        FindInvalidData          = 0x0002_0000
-        GenUVCoords              = 0x0004_0000
-        TransformUVCoords        = 0x0008_0000
-        FindInstances            = 0x0010_0000
-        OptimizeMeshes           = 0x0020_0000
-        OptimizeGraph            = 0x0040_0000
-        FlipUVs                  = 0x0080_0000
-        FlipWindingOrder         = 0x0100_0000
-        SplitByBoneCount         = 0x0200_0000
-        Debone                   = 0x0400_0000
-        GlobalScale              = 0x0800_0000
-        EmbedTextures            = 0x1000_0000
-        ForceGenNormals          = 0x2000_0000
-        DropNormals              = 0x4000_0000
-        GenBoundingBoxes         = 0x8000_0000
-
-    SceneFlag {.size: sizeof(cuint)} = enum
-        Incomplete        = 0x0000_0001
-        Validated         = 0x0000_0002
-        ValidationWarning = 0x0000_0004
-        NonVerboseFormat  = 0x0000_0008
-        Terrain           = 0x0000_0010
-        AllowShared       = 0x0000_0020
-
-# Cast to avoid buggy bounds checking
-# https://github.com/nim-lang/Nim/issues/20024
-template `or`(a, b: ProcessFlag): ProcessFlag =
-    cast[ProcessFlag]((cuint a) or (cuint b))
-    #ProcessFlag ((cuint a) or (cuint b))
-template `or`(a, b: SceneFlag): SceneFlag =
-    SceneFlag ((cuint a) or (cuint b))
-
-type Scene = object
-    flags          : SceneFlag
-    root_node      : ptr Node
-    mesh_count     : uint32
-    meshes         : ptr UncheckedArray[ptr Mesh]
-    material_count : uint32
-    materials      : ptr UncheckedArray[ptr Material]
-    animation_count: uint32
-    animations     : ptr UncheckedArray[ptr Animation]
-    texture_count  : uint32
-    textures       : ptr UncheckedArray[ptr Texture]
-    light_count    : uint32
-    lights         : ptr UncheckedArray[ptr Light]
-    camera_count   : uint32
-    cameras        : ptr UncheckedArray[ptr Camera]
-    meta_data      : ptr MetaData
-    name           : AIString
-    skeleton_count : uint32
-    skeletons      : ptr UncheckedArray[ptr Skeleton]
-    private        : pointer
-
-#[ -------------------------------------------------------------------- ]#
-
-# TODO: variable index size with an 'auto` option that detects size needed
-# TODO: import_file interface for memory load
-#       property imports
-{.push dynlib: "lib/libassimp.so".}
-proc is_extension_supported(ext: cstring): bool               {.importc: "aiIsExtensionSupported".}
-proc get_extension_list(lst: ptr AIString)                    {.importc: "aiGetExtensionList"    .}
-proc import_file(path: cstring; flags: uint32): ptr Scene     {.importc: "aiImportFile"          .}
-proc process(scene: ptr Scene; flags: ProcessFlag): ptr Scene {.importc: "aiApplyPostProcessing" .}
-proc free_scene(scene: ptr Scene)                             {.importc: "aiReleaseImport"       .}
-{.pop.}
-
-proc import_file(path: string; flags: ProcessFlag): ptr Scene =
-    result = import_file(path.cstring, flags.uint32)
-    if result == nil:
-        error &"Error: failed to load '{path}'"
-        quit 1
-
-proc get_extension_list(): seq[string] =
-    var lst: AIString
-    get_extension_list lst.addr
-    result = split($lst, ';')
-
 # TODO: ensure flags don't overlap/have invalid pairs
-proc write_header(scene: ptr Scene; file: Stream) =
+proc write_header(scene: ptr AIScene; file: Stream) =
     var header = Header(
         magic           : NAIMagic,
         version         : NAIVersion,
@@ -123,12 +27,12 @@ proc write_header(scene: ptr Scene; file: Stream) =
     )
     file.write_data(header.addr, sizeof header)
 
-proc validate(scene: ptr Scene; output_errs: bool): int =
+proc validate(scene: ptr AIScene; output_errs: bool): int =
     proc check(val: uint; name: string): int =
         result = if val != 0: 1 else: 0
         if val != 0 and output_errs:
             discard
-            warning &"scene contains {val} {name} which are not supported"
+            warning &"Scene contains {val} {name} which are not supported"
 
     result =
         check(scene.texture_count  , "textures")   +
@@ -145,9 +49,7 @@ proc validate(scene: ptr Scene; output_errs: bool): int =
 
 #[ -------------------------------------------------------------------- ]#
 
-converter vec3_to_vec2(v: Vec3): Vec2 = Vec2(x: v.x, y: v.y)
-
-proc write_meshes(scene: ptr Scene; file: Stream; verbose: bool) =
+proc write_meshes(scene: ptr AIScene; file: Stream; verbose: bool) =
     template write(kind: VertexKind; dst, src) =
         when flags in vertex_flags:
             dst = src
@@ -177,8 +79,8 @@ proc write_meshes(scene: ptr Scene; file: Stream; verbose: bool) =
             info &"    {mesh.anim_mesh_count} animation meshes (morphing method: {mesh.morph_method})"
             info &"    AABB: {mesh.aabb}"
 
-        if mesh.primitive_kinds != PrimitiveTriangle:
-            error "Error: mesh contains non-triangle primitives"
+        if mesh.primitive_kinds != Triangle:
+            error "Mesh contains non-triangle primitives"
             return
 
         if VerticesInterleaved in layout_flags:
@@ -212,8 +114,8 @@ proc write_meshes(scene: ptr Scene; file: Stream; verbose: bool) =
         elif VerticesSeparated in layout_flags:
             assert false
 
-proc write_materials(scene: ptr Scene; file: Stream; output_name: string; verbose: bool) =
-    proc get_tex(mtl: ptr Material; kind: TextureKind): TextureData =
+proc write_materials(scene: ptr AIScene; file: Stream; output_name: string; verbose: bool) =
+    proc get_tex(mtl: ptr AIMaterial; kind: AITextureKind): AITextureData =
         let count = mtl.texture_count kind
         if count == 0:
             error &"Material does not have any '{kind}' texture"
@@ -310,7 +212,7 @@ proc write_help() =
 
 proc check_duplicate(val, kind: string | Path) =
     if val != default (typeof val):
-        error &"Error: duplicate inputs provided for '{kind}'"
+        error &"Duplicate inputs provided for '{kind}'"
         quit 1
 
 proc check_present(val, opt: string): string =
@@ -354,7 +256,7 @@ proc parse_config(cfg_file: Path) =
         elif file_exists bin_ini_path:
             path = bin_ini_path
         else:
-            error "Error: no configuration file specified and could not find 'nai.ini' (use --config/-c to specify)"
+            error "No configuration file specified and could not find 'nai.ini' (use --config/-c to specify)"
             quit 1
 
     let config = load_config $path
@@ -372,11 +274,11 @@ proc parse_config(cfg_file: Path) =
             for (k, v) in pairs config[""]:
                 try: layout_flags.incl (parse_enum[LayoutFlag] &"{capitalize_ascii k}{capitalize_ascii v}")
                 except ValueError:
-                    error &"Error: Invalid output flag '{k}: {v}'"
+                    error &"Invalid output flag '{k}: {v}'"
                     error &"Valid values:\n{string_of_output_flags()})"
                     quit 1
         else:
-            warning &"Error: unrecognized configuration section '{key}'"
+            warning &"Unrecognized configuration section '{key}'"
             continue
 
     block validate_flags:

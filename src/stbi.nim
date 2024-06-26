@@ -1,36 +1,12 @@
-import std/streams, common
+import std/compilesettings, common
+from std/strutils  import contains
+from assimp/assimp import AITexel
 
 const
     STBImage      = "../lib/stb_image.h"
     STBImageWrite = "../lib/stb_image_write.h"
 
-    MaxTextureHintLen* = 9
-
-type
-    Texture* = object
-        width*      : uint32
-        height*     : uint32
-        format_hint*: array[MaxTextureHintLen, byte]
-        data*       : ptr UncheckedArray[Texel]
-        filename*   : AIString
-
-    Texel* = object
-        b, g, r, a: uint8
-
-proc `$`*(texture: Texture): string =
-    var fmt_hint = new_string MaxTextureHintLen
-    copy_mem(fmt_hint[0].addr, texture.format_hint[0].addr, MaxTextureHintLen)
-    result = &"""
-Texture '{texture.filename}' ({texture.width}x{texture.height}):
-    Format hint      -> {fmt_hint}
-    Data is internal -> {texture.data != nil}
-"""
-
-#[ -------------------------------------------------------------------- ]#
-
 # For tcc compat
-import std/compilesettings
-from std/strutils import contains
 when query_setting(commandLine).contains "--cc:tcc":
     {.emit: "#define STBI_NO_SIMD".}
 
@@ -60,7 +36,7 @@ type Image* = object
     size*    : int
     channels*: int
 
-converter texels_to_uint8ptr*(x: ptr UncheckedArray[Texel]): ptr uint8 =
+converter texels_to_uint8ptr*(x: ptr UncheckedArray[AITexel]): ptr uint8 =
     cast[ptr uint8](x)
 
 proc `=destroy`*(img: Image) =

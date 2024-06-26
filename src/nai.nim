@@ -1,3 +1,4 @@
+import assimp/assimp
 from std/strformat import `&`
 
 const NAIMagic*  : array[4, byte] = [78, 65, 73, 126] # "NAI~"
@@ -33,25 +34,7 @@ type
         UV
         UV3
 
-    TextureKind* {.size: sizeof(uint32).} = enum
-        None
-        Diffuse
-        Specular
-        Ambient
-        Emissive
-        Height
-        Normals
-        Shininess
-        Opacity
-        Displacement
-        Lightmap
-        Reflection
-        EmissionColour
-        Metalness
-        DiffuseRoughness
-        Sheen
-        Clearcoat
-        Transmission
+    TextureKind* = AITextureKind
 
     TextureFormat* {.size: sizeof(uint32).} = enum
         None
