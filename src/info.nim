@@ -1,6 +1,6 @@
 import
     std/[terminal, strutils, sequtils],
-    common, header, mesh
+    common, mesh
 
 var verbose* = false
 
@@ -23,7 +23,8 @@ func bytes_to_string(bytes: int): string =
 proc output_descrip*(parts: openArray[(string, int)]) =
     verbose = true
     let
-        rows = terminal_height() - 1
+        # rows = terminal_height() - 1
+        rows = 20
         cols = terminal_width()
         size = float(rows * cols)
     var sections: seq[(BackgroundColor, string, int)]

@@ -10,7 +10,7 @@ type
         Slow
         VerySlow
 
-    CompressionKind* = enum
+    TextureCompressionKind* = enum
         NoneRGB
         NoneRGBA
         BC1
@@ -58,7 +58,7 @@ type
         refine_iterations  : cint
 
     CompressionProfile* = object
-        case kind*: CompressionKind
+        case kind*: TextureCompressionKind
         of BC6H: bc6h: BC6HEncSettings
         of BC7 : bc7 : BC7EncSettings
         of ETC1: etc1: ETCEncSettings
@@ -119,14 +119,14 @@ proc replicate_borders*(dst_slice, src_tex: ptr RGBASurface; x, y, bpp: cint) {.
 
 #[ -------------------------------------------------------------------- ]#
 
-func bytes_per_block(kind: CompressionKind): int =
+func bytes_per_block(kind: TextureCompressionKind): int =
     case kind
     of BC1, BC4, ETC1: 8
     of BC3, BC5, BC6H, BC7, ASTC: 16
     of NoneRGB : 48
     of NoneRGBA: 64
 
-proc get_profile*(kind: CompressionKind; mode = Basic; with_alpha = true; block_size = (4, 4)): CompressionProfile =
+proc get_profile*(kind: TextureCompressionKind; mode = Basic; with_alpha = true; block_size = (4, 4)): CompressionProfile =
     result = CompressionProfile(kind: kind)
     case kind
     of BC6H:

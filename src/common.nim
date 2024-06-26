@@ -1,6 +1,6 @@
-import std/[sugar, enumerate, options]
+import std/[sugar, enumerate, options], nai
 from std/strformat import `&`
-export sugar, enumerate, options, `&`
+export sugar, enumerate, options, `&`, nai
 
 const NoArmaturePopulateProcess* = true
 

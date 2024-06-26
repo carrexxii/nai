@@ -24,30 +24,6 @@ type
         Plane
         Other
 
-    TextureKind* {.size: sizeof(cuint).} = enum
-        None
-        Diffuse
-        Specular
-        Ambient
-        Emissive
-        Height
-        Normals
-        Shininess
-        Opacity
-        Displacement
-        Lightmap
-        Reflection
-        BaseColour
-        NormalCamera
-        EmissionColour
-        Metalness
-        DiffuseRoughness
-        AmbientOcclusion
-        Unknown
-        Sheen
-        Clearcoat
-        Transmission
-
     ShadingMode* {.size: sizeof(cint).} = enum
         Flat
         Gouraud

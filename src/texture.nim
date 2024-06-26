@@ -1,6 +1,4 @@
-import
-    std/streams,
-    common, header
+import std/streams, common
 
 const
     STBImage      = "../lib/stb_image.h"

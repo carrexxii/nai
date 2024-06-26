@@ -8,7 +8,7 @@
 import
     std/[streams, tables],
     common
-from ispctc import CompressionKind
+from ispctc import TextureCompressionKind
 
 converter make_fourcc(fcc: array[4, char]): uint32 =
     ((uint32 fcc[0])       ) or
@@ -184,7 +184,7 @@ const PixelFormats = to_table {
     ASTC: pixel_format(FourCC, ['D', 'X', '1', '0'], 0, 0, 0, 0, 0),
 }
 
-func compression_to_format(kind: CompressionKind): DXGIFormat =
+func compression_to_format(kind: TextureCompressionKind): DXGIFormat =
     case kind
     of NoneRGB, NoneRGBA: R8G8B8A8UNorm
     of BC1 : BC1UNorm
@@ -201,14 +201,14 @@ func calc_mip_size(w, h, block_size: uint32): uint32 =
     result = max(1'u32, (w + 3) div 4) * max(1'u32, (h + 3) div 4)
     result *= block_size
 
-func get_bpp(kind: CompressionKind): int =
+func get_bpp(kind: TextureCompressionKind): int =
     case kind
     of BC1, BC4, ETC1: 4
     of BC3, BC5, BC6H, BC7, ASTC: 8
     of NoneRGB : 24
     of NoneRGBA: 32
 
-proc encode_dds*(kind: CompressionKind; data: openArray[byte]; w, h, mip_count: int): DDSFile =
+proc encode_dds*(kind: TextureCompressionKind; data: openArray[byte]; w, h, mip_count: int): DDSFile =
     let bpp = get_bpp kind
     let pixel_format = PixelFormats[kind]
 

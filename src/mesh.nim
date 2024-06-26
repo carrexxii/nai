@@ -1,4 +1,4 @@
-import common, header
+import common
 
 type
     Mesh* = object
@@ -63,14 +63,3 @@ type
     Face* = object
         index_count*: uint32
         indices*    : ptr UncheckedArray[uint32]
-
-func size*(flag: VertexFlag): int =
-    case flag
-    of Position, Normal,
-       Tangent , Bitangent,
-       UV3       : 3*(sizeof Real)
-    of ColourRGBA: 4*(sizeof uint8)
-    of ColourRGB : 3*(sizeof uint8)
-    of UV        : 2*(sizeof Real)
-    else:
-        quit 1

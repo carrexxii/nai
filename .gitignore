@@ -3,5 +3,6 @@ tests/
 *.so*
 *.a
 *.h
+!nai.h
 nai.ini
 nai
