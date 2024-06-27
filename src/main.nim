@@ -1,3 +1,7 @@
+# This file is a part of Nai. Copyright (C) 2024 carrexxii.
+# It is distributed under the terms of the GNU General Public License version 3 only.
+# For a copy, see the LICENSE file or <https://www.gnu.org/licenses/>.
+
 import
     std/[streams, parseopt, parsecfg, paths, tables, strutils],
     common, assimp/assimp, ispctc, stbi, nai, info, dds
@@ -192,6 +196,13 @@ func `~`(path: string): Path =
     Path path
 
 proc write_help() =
+    verbose = true
+
+    info "NAI - Copyright (C) 2024 carrexxii. All rights reserved."
+    info "This program comes with ABSOLUTELY NO WARRANTY and is licensed under the terms"
+    info "of the GNU General Public License version 3 only."
+    info "For a copy, see the LICENSE file or <https://www.gnu.org/licenses/>.\n"
+
     info "Usage:"
     info "    naic file [options]\n"
 

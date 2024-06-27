@@ -1,3 +1,7 @@
+# This file is a part of Nai. Copyright (C) 2024 carrexxii.
+# It is distributed under the terms of the GNU General Public License version 3 only.
+# For a copy, see the LICENSE file or <https://www.gnu.org/licenses/>.
+
 import common, animation, camera, light, material, mesh
 from std/strutils import split
 export common, animation, camera, light, material, mesh
