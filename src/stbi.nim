@@ -50,4 +50,6 @@ proc `=destroy`*(img: Image) =
 proc load_image*(data: ptr uint8; len: SomeInteger; bpp = 4): Image =
     var w, h, chan: cint
     let data = load_image(data, cint len, w.addr, h.addr, chan.addr, cint bpp)
-    Image(data: data, w: w, h: h, size: 4*w*h, channels: chan)
+    result = Image(data: data, w: w, h: h, size: 4*w*h, channels: bpp)
+
+    info &"Loaded image from memory w/{bpp}Bpp ({w}x{h} with {chan} channels)"

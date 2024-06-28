@@ -1,4 +1,4 @@
-# Nai
+# Nai~
 Nai is a tool for compiling various 3D model formats into a binary format specified via a configuration file.
 
 # License

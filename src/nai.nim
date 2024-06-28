@@ -10,18 +10,11 @@ const NAIVersion*: array[2, byte] = [0, 0]
 
 type
     LayoutFlag* = enum
-        None
-
-        VerticesNone        = 1 shl 0
-        VerticesInterleaved = 1 shl 1
-        VerticesSeparated   = 1 shl 2
-
-        TexturesNone     = 1 shl 3
-        TexturesInternal = 1 shl 4
-        TexturesExternal = 1 shl 5
-
-        A, B, C, D, E, F, G, H, I, J # https://github.com/nim-lang/Nim/issues/23692
-    LayoutMask* {.size: sizeof(uint32).} = set[LayoutFlag]
+        VerticesInterleaved = 1 shl 0
+        VerticesSeparated   = 1 shl 1
+        TexturesInternal    = 1 shl 2
+        TexturesExternal    = 1 shl 3
+    LayoutMask* {.size: sizeof(uint16).} = set[LayoutFlag]
 
     CompressionKind* {.size: sizeof(uint16).} = enum
         None
@@ -69,9 +62,9 @@ type
     Header* = object
         magic*           : array[4, byte]
         version*         : array[2, byte]
-        compression_kind*: CompressionKind
         layout_flags*    : LayoutMask
         vertex_flags*    : array[8, VertexKind]
+        compression_kind*: CompressionKind
         mesh_count*      : uint16
         material_count*  : uint16
         texture_count*   : uint16
@@ -114,18 +107,17 @@ proc `$`*(header: Header): string =
 
 func size*(kind: VertexKind): int =
     case kind
+    of None: 0
     of Position, Normal,
        Tangent , Bitangent,
        UV3       : 3 * (sizeof float32)
     of ColourRGBA: 4 * (sizeof uint8)
     of ColourRGB : 3 * (sizeof uint8)
     of UV        : 2 * (sizeof float32)
-    else:
-        raise new_exception(ValueError, "Invalid VertexKind")
 
 # Keep synced with the header file
 static:
-    assert (sizeof Header)         == 32
+    assert (sizeof Header)         == 28
     assert (sizeof MeshHeader)     == 12
     assert (sizeof MaterialHeader) == 28
     assert (sizeof TextureHeader)  == 12

@@ -5,6 +5,8 @@
 import common
 from std/math import ceil_div
 
+const ISPCTCPath = "lib/libispc_texcomp.so"
+
 type
     ProfileKind* = enum
         UltraFast
@@ -75,7 +77,7 @@ type
 
 #[ -------------------------------------------------------------------- ]#
 
-{.push dynlib:"libispc_texcomp.so".}
+{.push dynlib: ISPCTCPath.}
 
 # BC7 with ignored alpha
 proc get_profile_ultra_fast*(settings: ptr BC7EncSettings) {.importc: "GetProfile_ultrafast".}

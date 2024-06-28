@@ -4,32 +4,17 @@
 
 import
     std/[streams, parseopt, parsecfg, paths, tables, strutils],
-    common, assimp/assimp, ispctc, stbi, nai, info, dds
+    common, assimp/assimp, ispctc, stbi, nai, output, analyze, dds
 from std/os       import get_app_dir
 from std/files    import file_exists
 from std/sequtils import foldl, to_seq
 from std/setutils import full_set
 
 const ConfigFileName = "nai.ini"
+let cwd = get_current_dir()
 var
     layout_flags: LayoutMask
     vertex_flags: array[8, VertexKind]
-
-# TODO: ensure flags don't overlap/have invalid pairs
-proc write_header(scene: ptr AIScene; file: Stream) =
-    var header = Header(
-        magic           : NAIMagic,
-        version         : NAIVersion,
-        compression_kind: None,
-        layout_flags    : layout_flags,
-        vertex_flags    : vertex_flags,
-        mesh_count      : uint16 scene.mesh_count,
-        material_count  : uint16 scene.material_count,
-        texture_count   : uint16 scene.texture_count,
-        animation_count : uint16 scene.animation_count,
-        skeleton_count  : uint16 scene.skeleton_count,
-    )
-    file.write_data(header.addr, sizeof header)
 
 proc validate(scene: ptr AIScene; output_errs: bool): int =
     proc check(val: uint; name: string): int =
@@ -46,165 +31,28 @@ proc validate(scene: ptr AIScene; output_errs: bool): int =
         check(scene.light_count    , "lights")     +
         check(scene.camera_count   , "cameras")
 
-    let texture_flags = {TexturesNone, TexturesInternal, TexturesExternal}
+    let texture_flags = {TexturesInternal, TexturesExternal}
     if scene.texture_count > 0 and layout_flags * texture_flags != {}:
         error &"File has {scene.texture_count} textures but no texture flags were specified"
         inc result
 
-#[ -------------------------------------------------------------------- ]#
-
-proc write_meshes(scene: ptr AIScene; file: Stream; verbose: bool) =
-    template write(kind: VertexKind; dst, src) =
-        when flags in vertex_flags:
-            dst = src
-
-    template iter(count: int; a, b, c: ptr UncheckedArray[untyped]): untyped =
-        iterator iter_impl(n: int; s1: typeof a; s2: typeof b; s3: typeof c): (typeof a[0], typeof b[0], typeof c[0]) =
-            for i in 0..<n:
-                yield (s1[i], s2[i], s3[i])
-
-        iter_impl(count, a, b, c)
-
-    if scene.mesh_count != 1:
-        assert(false, "Need to implement multiple meshes")
-    for mesh in to_oa(scene.meshes, scene.mesh_count):
-        var index_count = 0
-        for face in to_oa(mesh.faces, mesh.face_count):
-            index_count += int face.index_count
-
-        let vert_list = to_seq vertex_flags
-        let vert_size = vert_list.foldl(a + b.size, 0)
-
-        if verbose:
-            info &"Mesh '{mesh.name}' (material index: {mesh.material_index}) {vertex_flags}"
-            info &"    {mesh.vertex_count} vertices of {0}B ({index_count} indices making {mesh.face_count} faces)"
-            info &"    UV components: {mesh.uv_component_count}"
-            info &"    {mesh.bone_count} bones"
-            info &"    {mesh.anim_mesh_count} animation meshes (morphing method: {mesh.morph_method})"
-            info &"    AABB: {mesh.aabb}"
-
-        if mesh.primitive_kinds != Triangle:
-            error "Mesh contains non-triangle primitives"
-            return
-
-        if VerticesInterleaved in layout_flags:
-            file.write_data(mesh.vertex_count.addr, sizeof MeshHeader.vert_count)
-            file.write_data(index_count.addr      , sizeof MeshHeader.index_count)
-
-            var vert_mem  = cast[ptr UncheckedArray[uint8]](alloc (vert_size * (int mesh.vertex_count)))
-            for (i, pair) in enumerate [(Position, mesh.vertices),
-                                        (Normal  , mesh.normals),
-                                        (UV      , mesh.texture_coords[0])]: # TODO: deal with other texture_coords
-                let (kind, data) = pair
-                var offset = 0
-                for flag in vertex_flags:
-                    if flag == kind:
-                        break
-                    offset += flag.size
-
-                var p = offset
-                for v in 0 .. mesh.vertex_count:
-                    copy_mem(vert_mem[p].addr, data[v].addr, kind.size)
-                    p += vert_size
-
-            file.write_data(vert_mem, vert_size * (int mesh.vertex_count))
-            dealloc vert_mem
-
-            for face in to_oa(mesh.faces, mesh.face_count):
-                for index in to_oa(face.indices, face.index_count):
-                    let index32 = uint32 index
-                    file.write_data(index32.addr, sizeof index32)
-
-        elif VerticesSeparated in layout_flags:
-            assert false
-
-proc write_materials(scene: ptr AIScene; file: Stream; output_name: string; verbose: bool) =
-    proc get_tex(mtl: ptr AIMaterial; kind: AITextureKind): AITextureData =
-        let count = mtl.texture_count kind
-        if count == 0:
-            error &"Material does not have any '{kind}' texture"
-            quit 1
-        elif count > 1:
-            warning &"Material has {count} {kind} textures, but only 1 is supported"
-
-        let data = mtl.texture kind
-        if is_none data:
-            error &"Could not get material's '{kind}' texture '{get_assimp_error()}'"
-            quit 1
-        get data
-
-    if verbose:
-        discard
-
-    for mtl in to_oa(scene.materials, scene.material_count):
-        if verbose:
-            echo $mtl[]
-
-        echo mtl.get_tex Diffuse
-        echo mtl.get_tex Normals
-        echo mtl.get_tex Metalness
-        echo "==========================="
-
-        let tex_datas = @[mtl.get_tex Diffuse, mtl.get_tex Normals, mtl.get_tex Metalness]
-        for tex_data in tex_datas:
-            if tex_data.path.starts_with "*":
-                let tex       = scene.textures[parse_int tex_data.path[1..^1]][]
-                var file_name = output_name
-                file_name.remove_suffix ".nai"
-                file_name &= &"-{to_lower_ascii $tex_data.kind}.dds"
-
-                let
-                    raw_tex = load_image(tex.data, tex.width, 4)
-                    w = raw_tex.w
-                    h = raw_tex.h
-
-                # var file = open_file_stream(file_name, fmWrite)
-                # file.write_data(tex.data[0].addr, int tex.width)
-                # close file
-
-                let profile = BC1.get_profile()
-                let cmp_tex = profile.compress(cast[ptr byte](raw_tex.data), w, h, raw_tex.channels)
-
-                let dds_file = encode_dds(profile.kind, to_open_array(cast[ptr UncheckedArray[byte]](cmp_tex.data), 0, cmp_tex.size - 1), w, h, 1)
-                let sz = 4 + (sizeof dds_file.header) + dds_file.data_size
-                if verbose:
-                    info &"Writing '{tex_data.kind}' texture to '{file_name}' ({sz}/{sz/1024:.2f}kB/{sz/1024/1024:.2f}MB)"
-                dds_file.write(file_name)
-            else:
-                assert false
-
-    quit 0
-
-# proc write_textures*(scene: ptr Scene; file: Stream; output_name: string; verbose: bool) =
-    # discard
-    # for texture in to_oa(scene.textures, scene.texture_count):
-    #     if verbose:
-    #         echo $texture[]
-    #     var fmt_hint = new_string MaxTextureHintLen
-    #     copy_mem(fmt_hint[0].addr, texture.format_hint[0].addr, MaxTextureHintLen)
-        # if TexturesExternal in output_flags:
-        #     let texture_name = &"{output_name[0 ..^ 5]}-{}.{fmt_hint}"
-        #     var file = open_file_stream(texture_name, fmWrite)
-        #     file.write_data(texture.data[0].addr, int texture.width)
-        #     close file
-
-#[ -------------------------------------------------------------------- ]#
-
-let cwd = get_current_dir()
-
-func `~`(path: string): Path =
+func `~/`(path: string): Path =
     Path path
 
 proc write_help() =
     verbose = true
 
-    info "NAI - Copyright (C) 2024 carrexxii. All rights reserved."
+    info "Nai - Copyright (C) 2024 carrexxii. All rights reserved."
     info "This program comes with ABSOLUTELY NO WARRANTY and is licensed under the terms"
     info "of the GNU General Public License version 3 only."
     info "For a copy, see the LICENSE file or <https://www.gnu.org/licenses/>.\n"
 
     info "Usage:"
-    info "    naic file [options]\n"
+    info "    nai [command] <file> [options]\n"
+
+    info "Commands:"
+    info "    convert, c              Converts input into a Nai file (Default)"
+    info "    analyze, a              Analyze and output data contained in a Nai file\n"
 
     info "Options: (opt:VAL or opt=VAL)"
     info "    -i, --input:PATH        Explicitly define an input file"
@@ -241,10 +89,10 @@ proc bool_opt(key, val: string): bool =
     else:
         error &"Invalid value for '{key}'. Expected a boolean value:"
         error &"\tTruth-y: {truthy.join \", \"}"
-        error &"\tFalse-y: {falsy.join \", \"},"
+        error &"\tFalse-y: {falsy.join  \", \"},"
         quit 1
 
-proc parse_config(cfg_file: Path) =
+proc parse_config(cfg_file: Path): Header =
     func string_of_output_flags(): string {.compileTime.} =
         result = "\t"
         const set_str = $(full_set LayoutFlag)
@@ -260,8 +108,8 @@ proc parse_config(cfg_file: Path) =
 
     var path = cfg_file
     if path == default Path:
-        let cwd_ini_path = ~get_app_dir() / ~ConfigFileName
-        let bin_ini_path = cwd / ~ConfigFileName
+        let cwd_ini_path = ~/get_app_dir() / ~/ConfigFileName
+        let bin_ini_path = cwd / ~/ConfigFileName
         if file_exists cwd_ini_path:
             path = cwd_ini_path
         elif file_exists bin_ini_path:
@@ -276,18 +124,27 @@ proc parse_config(cfg_file: Path) =
         of "vertex":
             var vc = 0
             for val in config[key].keys:
-                vertex_flags[vc] = parse_enum[VertexKind] val
+                result.vertex_flags[vc] = parse_enum[VertexKind] val
                 inc vc
-        # of "texture":
+        # of "materials":
         #     for val in config[key].keys:
         #         texture_flags.incl (parse_enum[TextureFlag] val)
         of "":
             for (k, v) in pairs config[""]:
-                try: layout_flags.incl (parse_enum[LayoutFlag] &"{capitalize_ascii k}{capitalize_ascii v}")
-                except ValueError:
-                    error &"Invalid output flag '{k}: {v}'"
-                    error &"Valid values:\n{string_of_output_flags()})"
-                    quit 1
+                case k
+                of "Compression":
+                    try: result.compression_kind = parse_enum[CompressionKind](to_upper_ascii v)
+                    except ValueError:
+                        let kinds = ($(full_set CompressionKind)).multireplace(("{", ""), ("}", ""))
+                        error &"Invalid compression kind '{v}'\n" &
+                              &"Valid values are: {kinds}"
+                        quit 1
+                else:
+                    try: layout_flags.incl (parse_enum[LayoutFlag] &"{capitalize_ascii k}{capitalize_ascii v}")
+                    except ValueError:
+                        error &"Invalid output flag '{k}: {v}'\n" &
+                              &"Valid values:\n{string_of_output_flags()})"
+                        quit 1
         else:
             warning &"Unrecognized configuration section '{key}'"
             continue
@@ -299,13 +156,14 @@ proc parse_config(cfg_file: Path) =
                 error &"Incompatible flags '{intersection}'"
                 result = true
 
-        if (check {TexturesNone, TexturesInternal, TexturesExternal}) or
-           (check {VerticesNone, VerticesInterleaved, VerticesSeparated}):
+        if (check {TexturesInternal, TexturesExternal}) or
+           (check {VerticesInterleaved, VerticesSeparated}):
             quit 1
 
 when is_main_module:
     var
         options = init_opt_parser()
+        command = "convert"
         out_file: Path = cwd
         in_file : Path
         cfg_file: Path
@@ -318,29 +176,33 @@ when is_main_module:
             of "help"   , "h": write_help()
             of "verbose", "v": verbose  = key.bool_opt val
             of "quiet"  , "q": quiet    = key.bool_opt val
-            of "config" , "c": cfg_file = ~key
-            of "output" , "o": out_file = ~(val.check_present key)
+            of "config" , "c": cfg_file = ~/key
+            of "output" , "o": out_file = ~/(val.check_present key)
             of "input"  , "i":
-                in_file.check_duplicate ~"input"
-                in_file = ~val
+                in_file.check_duplicate ~/"input"
+                in_file = ~/val
             of "force", "ignore", "f": ignore = key.bool_opt val
             else:
                 error &"Unrecognized option: '{key}'"
                 quit 1
         of cmdArgument:
-            in_file.check_duplicate "input"
-            in_file = ~(if key == "": val else: key)
+            case key
+            of "convert", "c": command = "convert"
+            of "analyze", "a": command = "analyze"
+            else:
+                in_file.check_duplicate "input"
+                in_file = ~/(if key == "": val else: key)
         of cmdEnd:
             discard
 
-    if in_file == ~"":
+    if in_file == ~/"":
         error "No input file provided"
         write_help()
 
     if out_file == cwd:
         out_file = cwd / extract_filename in_file
 
-    parse_config cfg_file
+    var header = parse_config cfg_file
 
     var scene = import_file($in_file, GenBoundingBoxes or RemoveRedundantMaterials)
     info &"Scene '{scene.name}' ('{in_file}' -> '{out_file}')"
@@ -356,11 +218,14 @@ when is_main_module:
         error &"File '{in_file}' contains unsupported components (use -f/--force/--ignore to continue regardless)"
         quit 1
 
-    output_descrip([("Header", sizeof Header), ("Vertices", 2000*32), ("Textures", 2000000)])
-    # var file = open_file_stream($out_file, fmWrite)
-    # write_header(scene, file)
-    # write_meshes(scene, file, verbose)
-    # write_materials(scene, file, $out_file, verbose)
-    # close file
+    case command
+    of "convert":
+        var file = open_file_stream($out_file, fmWrite)
+        header.write_header(scene, file)
+        header.write_meshes(scene, file, verbose)
+        header.write_materials(scene, file, $out_file, verbose)
+        close file
+    of "analyze":
+        analyze $out_file
 
     free_scene scene

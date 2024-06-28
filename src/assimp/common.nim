@@ -5,7 +5,9 @@
 from std/strformat import `&`
 export `&`
 
-const NoArmaturePopulateProcess* = true
+const
+    AssimpPath* = "lib/libassimp.so"
+    NoArmaturePopulateProcess* = true
 
 const
     AIMaxStringLen*     = 1024
@@ -86,4 +88,4 @@ func `$`*(aabb: AIAABB): string =
     let min = aabb.min
     result = &"[max({max.x:.2f}, {max.y:.2f}, {max.z:.2f}) -> min({min.x:.2f}, {min.y:.2f}, {min.z:.2f})]"
 
-proc get_assimp_error*(): cstring {.importc: "aiGetErrorString", dynlib: "libassimp.so".}
+proc get_assimp_error*(): cstring {.importc: "aiGetErrorString", dynlib: AssimpPath.}
