@@ -39,17 +39,24 @@ proc write_meshes*(header: Header; scene: ptr AIScene; file: Stream; verbose: bo
         let vert_list = to_seq header.vertex_flags
         let vert_size = vert_list.foldl(a + b.size, 0)
 
-        if verbose:
-            info &"Mesh '{mesh.name}' (material index: {mesh.material_index}) {header.vertex_flags}"
-            info &"    {mesh.vertex_count} vertices of {0}B ({index_count} indices making {mesh.face_count} faces)"
-            info &"    UV components: {mesh.uv_component_count}"
-            info &"    {mesh.bone_count} bones"
-            info &"    {mesh.anim_mesh_count} animation meshes (morphing method: {mesh.morph_method})"
-            info &"    AABB: {mesh.aabb}"
+        info &"Mesh '{mesh.name}' (material index: {mesh.material_index}) {header.vertex_flags}"
+        info &"    {mesh.vertex_count} vertices of {0}B ({index_count} indices making {mesh.face_count} faces)"
+        info &"    UV components: {mesh.uv_component_count}"
+        info &"    {mesh.bone_count} bones"
+        info &"    {mesh.anim_mesh_count} animation meshes (morphing method: {mesh.morph_method})"
+        info &"    AABB: {mesh.aabb}"
 
         if mesh.primitive_kinds != Triangle:
             error "Mesh contains non-triangle primitives"
             return
+
+        let mesh_header = MeshHeader(
+            material_index: uint16 mesh.material_index,
+            index_size    : Index32,
+            vert_count    : mesh.vertex_count,
+            index_count   : uint32 index_count,
+        )
+        file.write mesh_header
 
         if VerticesInterleaved in header.layout_flags:
             file.write_data(mesh.vertex_count.addr, sizeof MeshHeader.vert_count)
@@ -108,7 +115,8 @@ proc write_materials*(header: Header; scene: ptr AIScene; file: Stream; output_n
         let tex_datas = @[mtl.get_tex Diffuse, mtl.get_tex Normals, mtl.get_tex Metalness]
         for tex_data in tex_datas:
             if tex_data.path.starts_with "*":
-                let tex       = scene.textures[parse_int tex_data.path[1..^1]][]
+                let index     = parse_int tex_data.path[1..^1]
+                let tex       = scene.textures[index][]
                 var file_name = output_name
                 file_name.remove_suffix ".nai"
                 file_name &= &"-{to_lower_ascii $tex_data.kind}.dds"
@@ -125,15 +133,14 @@ proc write_materials*(header: Header; scene: ptr AIScene; file: Stream; output_n
                 let profile = BC1.get_profile()
                 let cmp_tex = profile.compress(cast[ptr byte](raw_tex.data), w, h, raw_tex.channels)
 
-                let dds_file = encode_dds(profile.kind, to_open_array(cast[ptr UncheckedArray[byte]](cmp_tex.data), 0, cmp_tex.size - 1), w, h, 1)
-                let sz = 4 + (sizeof dds_file.header) + dds_file.data_size
-                if verbose:
-                    info &"Writing '{tex_data.kind}' texture to '{file_name}' ({sz}/{sz/1024:.2f}kB/{sz/1024/1024:.2f}MB)"
-                dds_file.write(file_name)
+                # file.write_data(mesh_header, sizeof mesh_header)
+                file.write_data(cmp_tex.data, cmp_tex.size)
+
+                # let dds_file = encode_dds(profile.kind, to_open_array(cast[ptr UncheckedArray[byte]](cmp_tex.data), 0, cmp_tex.size - 1), w, h, 1)
+                # let sz = 4 + (sizeof dds_file.header) + dds_file.data_size
+                # info &"Writing '{tex_data.kind}' texture to '{file_name}' ({sz}/{sz/1024:.2f}kB/{sz/1024/1024:.2f}MB)"
             else:
                 assert false
-
-    quit 0
 
 # proc write_textures*(scene: ptr Scene; file: Stream; output_name: string; verbose: bool) =
     # discard

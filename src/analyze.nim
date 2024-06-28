@@ -51,36 +51,39 @@ func verts_to_string(flags: array[8, VertexKind]): string =
             a,
         "")
 
-proc write(header: Header; file_name: string) =
+proc write(str: string; size, scale: int; colour: var BackgroundColor) =
+    var wstr = str
+    if wstr.len >= size * scale:
+        wstr.set_len size * scale
+    else:
+        wstr = wstr.center (scale * size)
+    stdout.styled_write fgBlack, ++colour, wstr
+
+proc write_header(header: Header; file_name: string) =
     let scale  = min(8, terminal_width() div 8)
     var colour = StartColour
     proc write(str: string; size: int) =
-        var wstr = str
-        if wstr.len >= size * scale:
-            wstr.set_len (size * scale)
-        else:
-            wstr = wstr.center (scale * size)
-        stdout.styled_write(fgBlack, ++colour, wstr)
+        write str, size, scale, colour
 
     let name = &"Nai File '{file_name}'"
-    stdout.styled_write(bgWhite, fgBlack, name.center(8 * scale, '-'), bgDefault, "\n")
+    stdout.styled_write bgWhite, fgBlack, name.center(8 * scale, '-'), bgDefault, "\n"
 
-    write(fourcc_to_string header.magic              , sizeof Header.magic)
-    write(&"V{header.version[0]}.{header.version[1]}", sizeof Header.version)
-    write(layout_to_string header.layout_flags       , sizeof Header.layout_flags)
+    write fourcc_to_string header.magic              , sizeof Header.magic
+    write &"V{header.version[0]}.{header.version[1]}", sizeof Header.version
+    write layout_to_string header.layout_flags       , sizeof Header.layout_flags
     stdout.write "\n"
 
-    write(verts_to_string header.vertex_flags, sizeof Header.vertex_flags)
+    write verts_to_string header.vertex_flags, sizeof Header.vertex_flags
     stdout.write "\n"
 
     let cmp_str = if header.compression_kind == None: "No Compression" else: $header.compression_kind
-    write(cmp_str                             , sizeof Header.compression_kind)
-    write(&"{header.mesh_count} Meshes"       , sizeof Header.mesh_count)
-    write(&"{header.material_count} Materials", sizeof Header.material_count)
-    write(&"{header.texture_count} Textures"  , sizeof Header.texture_count)
+    write cmp_str                             , sizeof Header.compression_kind
+    write &"{header.mesh_count} Meshes"       , sizeof Header.mesh_count
+    write &"{header.material_count} Materials", sizeof Header.material_count
+    write &"{header.texture_count} Textures"  , sizeof Header.texture_count
     stdout.write "\n"
-    write(&"{header.animation_count} Animations", sizeof Header.animation_count)
-    write(&"{header.animation_count} Skeletons" , sizeof Header.skeleton_count)
+    write &"{header.animation_count} Animations", sizeof Header.animation_count
+    write &"{header.animation_count} Skeletons" , sizeof Header.skeleton_count
     stdout.write "\n"
 
 proc analyze*(file_name: string) =
@@ -96,32 +99,42 @@ proc analyze*(file_name: string) =
         let   mstr  = fourcc_to_string header.magic
         warning &"File '{file_name}' does not have a correct magic value ({magic}), got: {mstr}"
 
-    try: header.write file_name
+    try: header.write_header file_name
     except ValueError:
         error &"Invalid header, file '{file_name}' does not appear to be a valid Nai file"
         quit 1
 
-    # verbose = true
-    # let
-    #     # rows = terminal_height() - 1
-    #     rows = 20
-    #     cols = terminal_width()
-    #     size = float(rows * cols)
-    # var sections: seq[(BackgroundColor, string, int)]
-    # var colour = bgRed
-    # for (name, size) in parts:
-    #     sections.add (colour, name, size)
-    #     inc colour
-    # let total = sections.foldl(a + b[2], 0)
+    let scale  = min(16, terminal_width() div 8)
+    var colour = StartColour
+    proc write(str: string; size: int) =
+        write str, size, scale, colour
 
-    # stdout.styled_write "\n"
-    # for (bg, name, len) in sections:
-    #     let name = &"{name} ({bytes_to_string len})"
-    #     let len = max(1, int(len / total * size))
-    #     if len < name.len:
-    #         stdout.styled_write(fgBlack, bg, " ")
-    #     else:
-    #         stdout.styled_write(fgBlack, bg, center(name, len))
-    # stdout.styled_write "\n"
+    var mesh: MeshHeader
+    for i in 0..<int header.mesh_count:
+        if file.read_data(mesh.addr, sizeof MeshHeader) != sizeof MeshHeader:
+            error &"Failed to read mesh {i} header for file '{file_name}'"
+            quit 1
+
+        let name = &"Mesh {i}"
+        stdout.styled_write bgWhite, fgBlack, name.center 8 * scale, bgDefault, "\n"
+        write &"Index {mesh.material_index}" , sizeof mesh.material_index
+        write &"Index size {mesh.index_size}", sizeof mesh.index_size
+        write &"{mesh.vert_count} Vertices"  , sizeof mesh.vert_count
+        stdout.write "\n"
+        write &"{mesh.index_count} Indices", sizeof mesh.index_count
+        write "Vertex data..."             , sizeof mesh.index_count
+        stdout.write "\n"
+
+        var count = 8 * scale
+        while count > 0:
+            for flag in header.vertex_flags:
+                if flag == None:
+                    continue
+
+                let size = min(count, flag.size)
+                let str  = flag.abbrev.foldl(a & ($b).align_left(scale div 4, '.'), "")
+                stdout.styled_write ++colour, fgBlack, str.center(size, ' ')
+                count -= size
+        stdout.write "\n"
 
     close file

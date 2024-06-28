@@ -54,9 +54,10 @@ type
 
     IndexSize* {.size: sizeof(uint16).} = enum
         None
-        N8
-        N16
-        N32
+        Index8
+        Index16
+        Index32
+        Index64
 
 type
     Header* = object
@@ -76,20 +77,20 @@ type
         index_size*    : IndexSize
         vert_count*    : uint32
         index_count*   : uint32
-        verts*         : UncheckedArray[float32]
+        # verts: array[vert_count, float32]
 
     MaterialHeader* = object
         base_colour*     : array[4, float32]
         metallic_factor* : float32
         roughness_factor*: float32
         texture_count*   : uint8
-        textures*        : UncheckedArray[uint8]
+        # textures: array[texture_count, uint8]
 
     TextureHeader* = object
         kind*  : TextureKind
         format*: TextureFormat
         w*, h* : uint16
-        data*  : UncheckedArray[byte]
+        # data: array[<format_size> * w * h, byte]
 
 #[ -------------------------------------------------------------------- ]#
 
@@ -114,6 +115,18 @@ func size*(kind: VertexKind): int =
     of ColourRGBA: 4 * (sizeof uint8)
     of ColourRGB : 3 * (sizeof uint8)
     of UV        : 2 * (sizeof float32)
+
+func abbrev*(kind: VertexKind): string =
+    case kind
+    of None      : ""
+    of Position  : "xyz"
+    of Normal    : "nnn"
+    of Tangent   : "ttt"
+    of Bitangent : "TTT"
+    of ColourRGBA: "rgb"
+    of ColourRGB : "rgba"
+    of UV        : "uv"
+    of UV3       : "uvt"
 
 # Keep synced with the header file
 static:
