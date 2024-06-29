@@ -42,14 +42,14 @@ let
         "libzlibstatic.a",
     ]
 
-    debug_flags   = &"--cc:tcc --hints:off --nimCache:{build_path} -o:{bin_path} " &
+    debug_flags   = &"--cc:tcc --nimCache:{build_path} -o:{bin_path} " &
                     &"--passL:\"-ldl -lm\" --tlsEmulation:on -d:useMalloc"
     release_flags = &"--cc:gcc --nimCache:{build_path} -o:{bin_path} -d:release -d:danger --opt:speed"
     post_release = @[""]
 
 #[ -------------------------------------------------------------------- ]#
 
---hints:off
+# --hints:off
 
 proc red    (s: string): string = "\e[31m" & s & "\e[0m"
 proc green  (s: string): string = "\e[32m" & s & "\e[0m"

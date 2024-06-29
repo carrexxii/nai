@@ -12,9 +12,6 @@ from std/setutils import full_set
 
 const ConfigFileName = "nai.ini"
 let cwd = get_current_dir()
-var
-    layout_flags: LayoutMask
-    vertex_flags: array[8, VertexKind]
 
 proc validate(scene: ptr AIScene; output_errs: bool): int =
     proc check(val: uint; name: string): int =
@@ -31,10 +28,10 @@ proc validate(scene: ptr AIScene; output_errs: bool): int =
         check(scene.light_count    , "lights")     +
         check(scene.camera_count   , "cameras")
 
-    let texture_flags = {TexturesInternal, TexturesExternal}
-    if scene.texture_count > 0 and layout_flags * texture_flags != {}:
-        error &"File has {scene.texture_count} textures but no texture flags were specified"
-        inc result
+    # let texture_flags = {TexturesInternal, TexturesExternal}
+    # if scene.texture_count > 0 and layout_mask * texture_flags != {}:
+    #     error &"File has {scene.texture_count} textures but no texture flags were specified"
+    #     inc result
 
 func `~/`(path: string): Path =
     Path path
@@ -92,7 +89,10 @@ proc bool_opt(key, val: string): bool =
         error &"\tFalse-y: {falsy.join  \", \"},"
         quit 1
 
-proc parse_config(cfg_file: Path): Header =
+proc parse_config(cfg_file: Path): tuple[header: Header,
+                                         mtls  : seq[tuple[kind     : TextureKind,
+                                                           format   : TextureFormat,
+                                                           container: ContainerKind]]] =
     func string_of_output_flags(): string {.compileTime.} =
         result = "\t"
         const set_str = $(full_set LayoutFlag)
@@ -124,23 +124,41 @@ proc parse_config(cfg_file: Path): Header =
         of "vertex":
             var vc = 0
             for val in config[key].keys:
-                result.vertex_flags[vc] = parse_enum[VertexKind] val
+                result.header.vertex_kinds[vc] = parse_enum[VertexKind] val
                 inc vc
-        # of "materials":
-        #     for val in config[key].keys:
-        #         texture_flags.incl (parse_enum[TextureFlag] val)
+        of "materials":
+            var mc = 0
+            for (k, v) in pairs config[key]:
+                if v == "":
+                    try:
+                        result.header.material_values[mc] = parse_enum[MaterialValue] k
+                        inc mc
+                    except ValueError:
+                        error &"Invalid material value '{k}'"
+                        quit 1
+                else:
+                    try:
+                        let dst  = v.split '.'
+                        result.mtls.add (
+                            kind     : parse_enum[TextureKind] k,
+                            format   : parse_enum[TextureFormat] dst[0],
+                            container: parse_enum[ContainerKind] dst[1],
+                        )
+                    except ValueError:
+                        error &"Invalid values for material: '{k}', '{v}'"
+                        quit 1
         of "":
             for (k, v) in pairs config[""]:
                 case k
                 of "Compression":
-                    try: result.compression_kind = parse_enum[CompressionKind](to_upper_ascii v)
+                    try: result.header.compression_kind = parse_enum[CompressionKind](to_upper_ascii v)
                     except ValueError:
                         let kinds = ($(full_set CompressionKind)).multireplace(("{", ""), ("}", ""))
                         error &"Invalid compression kind '{v}'\n" &
                               &"Valid values are: {kinds}"
                         quit 1
                 else:
-                    try: layout_flags.incl (parse_enum[LayoutFlag] &"{capitalize_ascii k}{capitalize_ascii v}")
+                    try: result.header.layout_mask.incl (parse_enum[LayoutFlag] &"{capitalize_ascii k}{capitalize_ascii v}")
                     except ValueError:
                         error &"Invalid output flag '{k}: {v}'\n" &
                               &"Valid values:\n{string_of_output_flags()})"
@@ -150,8 +168,9 @@ proc parse_config(cfg_file: Path): Header =
             continue
 
     block validate_flags:
+        let header = result.header
         proc check(flags: LayoutMask): bool =
-            let intersection = flags * layout_flags
+            let intersection = flags * header.layout_mask
             if intersection.len > 1:
                 error &"Incompatible flags '{intersection}'"
                 result = true
@@ -202,17 +221,18 @@ when is_main_module:
     if out_file == cwd:
         out_file = cwd / extract_filename in_file
 
-    var header = parse_config cfg_file
+    var (header, mtl_data) = parse_config cfg_file
 
     var scene = import_file($in_file, GenBoundingBoxes or RemoveRedundantMaterials)
-    info &"Scene '{scene.name}' ('{in_file}' -> '{out_file}')"
-    info &"\tMeshes     -> {scene.mesh_count}"
-    info &"\tMaterials  -> {scene.material_count}"
-    info &"\tAnimations -> {scene.animation_count}"
-    info &"\tTextures   -> {scene.texture_count}"
-    info &"\tLights     -> {scene.light_count}"
-    info &"\tCameras    -> {scene.camera_count}"
-    info &"\tSkeletons  -> {scene.skeleton_count}"
+    if command != "analyze":
+        info &"Scene '{scene.name}' ('{in_file}' -> '{out_file}')"
+        info &"\tMeshes     -> {scene.mesh_count}"
+        info &"\tMaterials  -> {scene.material_count}"
+        info &"\tAnimations -> {scene.animation_count}"
+        info &"\tTextures   -> {scene.texture_count}"
+        info &"\tLights     -> {scene.light_count}"
+        info &"\tCameras    -> {scene.camera_count}"
+        info &"\tSkeletons  -> {scene.skeleton_count}"
 
     if validate(scene, not quiet) != 0 and not ignore:
         error &"File '{in_file}' contains unsupported components (use -f/--force/--ignore to continue regardless)"
@@ -221,11 +241,12 @@ when is_main_module:
     case command
     of "convert":
         var file = open_file_stream($out_file, fmWrite)
-        header.write_header(scene, file)
-        header.write_meshes(scene, file, verbose)
-        header.write_materials(scene, file, $out_file, verbose)
+        header.write_header    scene, file
+        header.write_meshes    scene, file
+        header.write_materials scene, file, $out_file
         close file
     of "analyze":
-        analyze $out_file
+        analyze $out_file, mtl_data
+    # analyze $out_file, mtl_data
 
     free_scene scene

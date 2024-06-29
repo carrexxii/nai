@@ -2,7 +2,9 @@
 # It is distributed under the terms of the GNU General Public License version 3 only.
 # For a copy, see the LICENSE file or <https://www.gnu.org/licenses/>.
 
-import assimp/assimp
+import
+    std/[strutils, sequtils],
+    common, assimp/assimp, ispctc
 from std/strformat import `&`
 
 const NAIMagic*  : array[4, byte] = [78, 65, 73, 126] # "NAI~"
@@ -20,6 +22,11 @@ type
         None
         ZLIB
 
+    ContainerKind* = enum
+        None
+        DDS
+        PNG
+
     VertexKind* {.size: sizeof(uint8).} = enum
         None
         Position
@@ -31,9 +38,61 @@ type
         UV
         UV3
 
-    TextureKind* = AITextureKind
+    MaterialValue* {.size: sizeof(uint8).} = enum
+        None
+        DoubleSided
+        BaseColour
+        MetallicFactor
+        RoughnessFactor
+        SpecularFactor
+        GlossinessFactor
+        AnisotropyFactor
+        SheenColourFactor
+        SheenRoughnessFactor
+        ClearcoatFactor
+        ClearcoatRoughnessFactor
+        Opacity
+        BumpScaling
+        Shininess
+        Reflectivity
+        RefractiveIndex
+        ColourDiffuse
+        ColourAmbient
+        ColourSpecular
+        ColourEmissive
+        ColourTransparent
+        ColourReflective
+        TransmissionFactor
+        VolumeThicknessFactor
+        VolumeAttenuationDistance
+        VolumeAttenuationColour
+        EmissiveIntensity
 
-    TextureFormat* {.size: sizeof(uint32).} = enum
+    TextureKind* {.size: sizeof(uint8).} = enum
+        None
+        Diffuse
+        Specular
+        Ambient
+        Emissive
+        Height
+        Normals
+        Shininess
+        Opacity
+        Displacement
+        Lightmap
+        Reflection
+        BaseColour
+        NormalCamera
+        EmissionColour
+        Metalness
+        DiffuseRoughness
+        AmbientOcclusion
+        Unknown
+        Sheen
+        Clearcoat
+        Transmission
+
+    TextureFormat* {.size: sizeof(uint16).} = enum
         None
 
         R
@@ -63,8 +122,9 @@ type
     Header* = object
         magic*           : array[4, byte]
         version*         : array[2, byte]
-        layout_flags*    : LayoutMask
-        vertex_flags*    : array[8, VertexKind]
+        layout_mask*     : LayoutMask
+        vertex_kinds*    : array[8, VertexKind]
+        material_values* : array[8, MaterialValue]
         compression_kind*: CompressionKind
         mesh_count*      : uint16
         material_count*  : uint16
@@ -80,30 +140,58 @@ type
         # verts: array[vert_count, float32]
 
     MaterialHeader* = object
-        base_colour*     : array[4, float32]
-        metallic_factor* : float32
-        roughness_factor*: float32
-        texture_count*   : uint8
-        # textures: array[texture_count, uint8]
+        texture_count*: uint16
+        _             : uint16
+        # material_data: struct
+        # texture_data : array[texture_count, uint8]
 
     TextureHeader* = object
         kind*  : TextureKind
+        _      : uint8
         format*: TextureFormat
         w*, h* : uint16
         # data: array[<format_size> * w * h, byte]
 
 #[ -------------------------------------------------------------------- ]#
 
+converter index_size_to_int*(kind: IndexSize): int =
+    case kind
+    of None   : 0
+    of Index8 : 1
+    of Index16: 2
+    of Index32: 4
+    of Index64: 8
+
+converter tex_fmt_to_cmp_kind*(kind: TextureFormat): TextureCompressionKind =
+    case kind
+    of RGB    : NoneRGB
+    of RGBA   : NoneRGBA
+    of BC1    : BC1
+    of BC3    : BC3
+    of BC4    : BC4
+    of BC5    : BC5
+    of BC6H   : BC6H
+    of BC7    : BC7
+    of ETC1   : ETC1
+    of ASTC4x4: ASTC
+    else:
+        error &"Cannot convert '{kind}' to `TextureCompressionKind`"
+        quit 1
+
 proc `$`*(header: Header): string =
     let valid_msg = if header.magic == NAIMagic: "valid" else: "invalid"
-    &"Nai object header:\n"                                  &
-    &"    Magic number    -> {header.magic} ({valid_msg})\n" &
-    &"    Output flags    -> {header.layout_flags}\n"        &
-    &"    Vertex flags    -> {header.vertex_flags}\n"        &
-    &"    Mesh count      -> {header.mesh_count}\n"          &
-    &"    Material count  -> {header.material_count}\n"      &
-    &"    Animation count -> {header.animation_count}\n"     &
-    &"    Texture count   -> {header.texture_count}\n"       &
+    let vert_kinds = header.vertex_kinds.filter_it   : it != None
+    let mtl_values = header.material_values.filter_it: it != None
+    &"Nai file header:\n"                                               &
+    &"    Magic number    -> {header.magic} ({valid_msg})\n"            &
+    &"    Version         -> {header.version[0]}.{header.version[1]}\n" &
+    &"    Layout mask     -> {header.layout_mask}\n"                    &
+    &"    Vertex kinds    -> {vert_kinds.join \", \"}\n"                &
+    &"    Material values -> {mtl_values.join \", \"}\n"                &
+    &"    Mesh count      -> {header.mesh_count}\n"                     &
+    &"    Material count  -> {header.material_count}\n"                 &
+    &"    Texture count   -> {header.texture_count}\n"                  &
+    &"    Animation count -> {header.animation_count}\n"                &
     &"    Skeleton count  -> {header.skeleton_count}\n"
 
 func size*(kind: VertexKind): int =
@@ -116,13 +204,24 @@ func size*(kind: VertexKind): int =
     of ColourRGB : 3 * (sizeof uint8)
     of UV        : 2 * (sizeof float32)
 
+func size*(kind: MaterialValue): int =
+    case kind
+    of DoubleSided:
+        1
+    of BaseColour, VolumeAttenuationColour,
+       ColourDiffuse , ColourAmbient    , ColourSpecular,
+       ColourEmissive, ColourTransparent, ColourReflective:
+        16
+    else:
+        4
+
 func abbrev*(kind: VertexKind): string =
     case kind
     of None      : ""
     of Position  : "xyz"
     of Normal    : "nnn"
     of Tangent   : "ttt"
-    of Bitangent : "TTT"
+    of Bitangent : "bbb"
     of ColourRGBA: "rgb"
     of ColourRGB : "rgba"
     of UV        : "uv"
@@ -130,7 +229,7 @@ func abbrev*(kind: VertexKind): string =
 
 # Keep synced with the header file
 static:
-    assert (sizeof Header)         == 28
+    assert (sizeof Header)         == 36
     assert (sizeof MeshHeader)     == 12
-    assert (sizeof MaterialHeader) == 28
-    assert (sizeof TextureHeader)  == 12
+    assert (sizeof MaterialHeader) == 4
+    assert (sizeof TextureHeader)  == 8

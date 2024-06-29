@@ -136,6 +136,10 @@ func bytes_per_block(kind: TextureCompressionKind): int =
     of NoneRGB : 48
     of NoneRGBA: 64
 
+func size*(kind: TextureCompressionKind; w, h: int): int =
+    let block_count = (w div 4) * (h div 4)
+    result = kind.bytes_per_block * block_count
+
 proc get_profile*(kind: TextureCompressionKind; mode = Basic; with_alpha = true; block_size = (4, 4)): CompressionProfile =
     result = CompressionProfile(kind: kind)
     case kind
