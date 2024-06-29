@@ -238,15 +238,15 @@ when is_main_module:
         error &"File '{in_file}' contains unsupported components (use -f/--force/--ignore to continue regardless)"
         quit 1
 
-    case command
-    of "convert":
-        var file = open_file_stream($out_file, fmWrite)
-        header.write_header    scene, file
-        header.write_meshes    scene, file
-        header.write_materials scene, file, $out_file
-        close file
-    of "analyze":
-        analyze $out_file, mtl_data
-    # analyze $out_file, mtl_data
+    # case command
+    # of "convert":
+    #     var file = open_file_stream($out_file, fmWrite)
+    #     header.write_header    scene, file
+    #     header.write_meshes    scene, file
+    #     header.write_materials scene, file, $out_file
+    #     close file
+    # of "analyze":
+        # analyze $out_file, mtl_data
+    analyze $out_file, mtl_data
 
     free_scene scene

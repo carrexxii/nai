@@ -25,6 +25,8 @@
 #include <stdint.h>
 
 #define NAI_MAGIC "NAI~"
+#define NAI_VERSION_MAJOR 0
+#define NAI_VERSION_MINOR 0
 
 #ifdef __cplusplus
 extern "C" {
@@ -33,42 +35,48 @@ extern "C" {
 /* This enum is used for describing what is included and how it it included in the file.
  * - Each group of flags is exclusive (ie, `VERTICES_INTERLEAVED | VERTICES_SEPARATED` is invalid)
  */
-typedef enum NAILayoutFlag {
-    NAI_VERTICES_NONE        = 1 << 0, // Exclude the vertices
-    NAI_VERTICES_INTERLEAVED = 1 << 1, // [xyz][nnn][uv][xyz][nnn][uv]
-    NAI_VERTICES_SEPARATED   = 1 << 2, // [xyz][xyz][nnn][nnn][uv][uv]
+typedef enum NaiLayoutFlag {
+    NAI_VERTICES_INTERLEAVED = 1 << 0, // [xyz][nnn][uv][xyz][nnn][uv]
+    NAI_VERTICES_SEPARATED   = 1 << 1, // [xyz][xyz][nnn][nnn][uv][uv]
 
-    NAI_TEXTURES_NONE     = 1 << 3, // Exclude the textures
-    NAI_TEXTURES_INTERNAL = 1 << 4, // Embed the textures in the file
-    NAI_TEXTURES_EXTERNAL = 1 << 5, // Write the textures to an external file. Format will be `output-kind.ext`
+    NAI_TEXTURES_INTERNAL = 1 << 2, // Embed the textures in the file
+    NAI_TEXTURES_EXTERNAL = 1 << 3, // Write the textures to an external file. Format will be `output-kind.ext`
                                     // For example if the output file is 'model' and you specify diffuse and normals
                                     // textures as DDS, you'll get 'model-diffuse.dds' and 'model-normals.dds'.
-} NAILayoutFlag;
+} NaiLayoutFlag;
 
-typedef enum NAICompressionType {
+typedef enum NaiCompressionType {
     NAI_COMPRESSION_NONE,
     NAI_COMPRESSION_ZLIB,
-} NAICompressionType;
+} NaiCompressionType;
 
-typedef enum NAIIndexSize {
+typedef enum NaiContainerType {
+    NAI_CONTAINER_NONE,
+    NAI_CONTAINER_DDS,
+    NAI_CONTAINER_PNG,
+} NaiContainerType;
+
+typedef enum NaiIndexSize {
     NAI_INDEX_SIZE_NONE,
     NAI_INDEX_SIZE_8,
     NAI_INDEX_SIZE_16,
     NAI_INDEX_SIZE_32,
-} NAIIndexSize;
+    NAI_INDEX_SIZE_64,
+} NaiIndexSize;
 
-typedef enum NAIVertexFlag {
-    NAI_VERTEX_POSITION    = 1 << 0,
-    NAI_VERTEX_NORMAL      = 1 << 1,
-    NAI_VERTEX_TANGENT     = 1 << 2,
-    NAI_VERTEX_BITANGENT   = 1 << 3,
-    NAI_VERTEX_COLOUR_RGBA = 1 << 4,
-    NAI_VERTEX_COLOUR_RGB  = 1 << 5,
-    NAI_VERTEX_UV          = 1 << 6,
-    NAI_VERTEX_UV3         = 1 << 7,
-} NAIVertexFlag;
+typedef enum NaiVertexType {
+    NAI_VERTEX_None,
+    NAI_VERTEX_POSITION,
+    NAI_VERTEX_NORMAL,
+    NAI_VERTEX_TANGENT,
+    NAI_VERTEX_BITANGENT,
+    NAI_VERTEX_COLOUR_RGBA,
+    NAI_VERTEX_COLOUR_RGB,
+    NAI_VERTEX_UV,
+    NAI_VERTEX_UV3,
+} NaiVertexType;
 
-typedef enum NAITextureType {
+typedef enum NaiTextureType {
     NAI_TEXTURE_NONE,
     NAI_TEXTURE_DIFFUSE,
     NAI_TEXTURE_SPECULAR,
@@ -81,15 +89,19 @@ typedef enum NAITextureType {
     NAI_TEXTURE_DISPLACEMENT,
     NAI_TEXTURE_LIGHTMAP,
     NAI_TEXTURE_REFLECTION,
+    NAI_TEXTURE_BASE_COLOUR,
+    NAI_TEXTURE_NORMAL_CAMERA,
     NAI_TEXTURE_EMISSION_COLOUR,
     NAI_TEXTURE_METALNESS,
     NAI_TEXTURE_DIFFUSE_ROUGHNESS,
+    NAI_TEXTURE_AMBIENT_OCCLUSION,
+    NAI_TEXTURE_UNKNOWN,
     NAI_TEXTURE_SHEEN,
     NAI_TEXTURE_CLEARCOAT,
     NAI_TEXTURE_TRANSMISSION,
-} NAITextureType;
+} NaiTextureType;
 
-typedef enum NAITextureFormat {
+typedef enum NaiTextureFormat {
     NAI_TEXTURE_FORMAT_NONE,
 
     NAI_TEXTURE_FORMAT_R,
@@ -107,53 +119,85 @@ typedef enum NAITextureFormat {
     NAI_TEXTURE_FORMAT_ETC1 = 200,
 
     NAI_TEXTURE_FORMAT_ASTC4x4 = 300,
-} NAITextureFormat;
+} NaiTextureFormat;
 
-typedef struct NAIHeader {
-    uint8_t            magic[4];
-    uint8_t            version[2];
-    NAICompressionType compression: 16;
-    NAILayoutFlag      layout_mask;
-    uint8_t            vertex_mask[8]; // Of NAIVertexFlag
-    uint16_t           mesh_count;
-    uint16_t           material_count;
-    uint16_t           texture_count;
-    uint16_t           animation_count;
-    uint16_t           skeleton_count;
-} NAIHeader;
+typedef enum NaiMaterialValueType {
+    NAI_MATERIAL_NONE,
+    NAI_MATERIAL_DOUBLE_SIDED,
+    NAI_MATERIAL_BASE_COLOUR,
+    NAI_MATERIAL_METALLIC_FACTOR,
+    NAI_MATERIAL_ROUGHNESS_FACTOR,
+    NAI_MATERIAL_SPECULAR_FACTOR,
+    NAI_MATERIAL_GLOSSINESS_FACTOR,
+    NAI_MATERIAL_ANISOTROPY_FACTOR,
+    NAI_MATERIAL_SHEEN_COLOUR_FACTOR,
+    NAI_MATERIAL_SHEEN_ROUGHNESS_FACTOR,
+    NAI_MATERIAL_CLEARCOAT_FACTOR,
+    NAI_MATERIAL_CLEARCOAT_ROUGHNESS_FACTOR,
+    NAI_MATERIAL_OPACITY,
+    NAI_MATERIAL_BUMP_SCALING,
+    NAI_MATERIAL_SHININESS,
+    NAI_MATERIAL_REFLECTIVITY,
+    NAI_MATERIAL_REFRACTIVE_INDEX,
+    NAI_MATERIAL_COLOUR_DIFFUSE,
+    NAI_MATERIAL_COLOUR_AMBIENT,
+    NAI_MATERIAL_COLOUR_SPECULAR,
+    NAI_MATERIAL_COLOUR_EMISSIVE,
+    NAI_MATERIAL_COLOUR_TRANSPARENT,
+    NAI_MATERIAL_COLOUR_REFLECTIVE,
+    NAI_MATERIAL_TRANSMISSION_FACTOR,
+    NAI_MATERIAL_VOLUME_THICKNESS_FACTOR,
+    NAI_MATERIAL_VOLUME_ATTENUATION_DISTANCE,
+    NAI_MATERIAL_VOLUME_ATTENUATION_COLOUR,
+    NAI_MATERIAL_EMISSIVE_INTENSITY,
+} NaiMaterialValueType;
+
+/* -------------------------------------------------------------------- */
+
+typedef struct NaiHeader {
+    uint8_t  magic[4];
+    uint8_t  version[2];
+    uint16_t layout_mask;        // NaiLayoutFlag
+    uint8_t  vertex_types[8];    // NaiVertexType
+    uint8_t  material_values[8]; // NaiMaterialValue
+    uint16_t compression;        // NaiCompressionType
+    uint16_t mesh_count;
+    uint16_t material_count;
+    uint16_t texture_count;
+    uint16_t animation_count;
+    uint16_t skeleton_count;
+} NaiHeader;
 
 /* Indices follow vertices such that `inds = verts + vert_count` */
-typedef struct NAIMeshHeader {
-    uint16_t     material_index;
-    NAIIndexSize index_size: 16;
-    uint32_t     vert_count;
-    uint32_t     index_count;
-    float        verts[];
-} NAIMeshHeader;
+typedef struct NaiMeshHeader {
+    uint16_t material_index;
+    uint16_t index_size;     // NaiIndexSize
+    uint32_t vert_count;
+    uint32_t index_count;
+    float    verts[];
+} NaiMeshHeader;
 
-typedef struct NAIMaterialHeader {
-    float   base_colour[4];
-    float   metallic_factor;
-    float   roughness_factor;
-    uint8_t texture_count;
-    uint8_t texture_inds[];
-} NAIMaterial;
+typedef struct NaiMaterialHeader {
+    uint16_t texture_count;
+    uint16_t _;
+    // Material data here depending on `header.material_values`
+    // NaiTextureHeader textures[];
+} NaiMaterial;
 
-typedef struct NAITextureHeader {
-    NAITextureType   type;
-    NAITextureFormat format;
-    uint16_t         w;
-    uint16_t         h;
-    uint8_t          data[];
-} NAITexture;
+typedef struct NaiTextureHeader {
+    uint16_t type;   // NAITextureType
+    uint16_t format; // NAITextureFormat
+    uint16_t w, h;
+    uint8_t  data[/* <format_size> * w * h */];
+} NaiTexture;
 
 #ifdef __cplusplus
 } // extern "C"
 #endif
 
-static_assert(sizeof(NAIHeader)         == 32);
-static_assert(sizeof(NAIMeshHeader)     == 12);
-static_assert(sizeof(NAIMaterialHeader) == 28);
-static_assert(sizeof(NAITextureHeader)  == 12);
+static_assert(sizeof(NaiHeader)         == 36);
+static_assert(sizeof(NaiMeshHeader)     == 12);
+static_assert(sizeof(NaiMaterialHeader) == 4);
+static_assert(sizeof(NaiTextureHeader)  == 8);
 
 #endif

@@ -68,7 +68,7 @@ type
         VolumeAttenuationColour
         EmissiveIntensity
 
-    TextureKind* {.size: sizeof(uint8).} = enum
+    TextureKind* {.size: sizeof(uint16).} = enum
         None
         Diffuse
         Specular
@@ -143,11 +143,10 @@ type
         texture_count*: uint16
         _             : uint16
         # material_data: struct
-        # texture_data : array[texture_count, uint8]
+        # texture_data : array[texture_count, TextureHeader]
 
     TextureHeader* = object
         kind*  : TextureKind
-        _      : uint8
         format*: TextureFormat
         w*, h* : uint16
         # data: array[<format_size> * w * h, byte]

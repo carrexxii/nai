@@ -169,8 +169,7 @@ proc write_materials(header: Header; file: FileStream; file_name: string;
         var tex: TextureHeader
         for j in 0..<int material.texture_count:
             file.read tex
-            write &"{tex.kind}", sizeof tex.kind
-            stdout.styled_write bgBlack, " ".repeat scale
+            write &"{tex.kind}"    , sizeof tex.kind
             write &"{tex.format}"  , sizeof tex.format
             write &"Width {tex.w}" , sizeof tex.w
             write &"Height {tex.h}", sizeof tex.h
