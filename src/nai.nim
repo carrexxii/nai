@@ -40,7 +40,8 @@ type
 
     MaterialValue* {.size: sizeof(uint8).} = enum
         None
-        DoubleSided
+        Name
+        TwoSided
         BaseColour
         MetallicFactor
         RoughnessFactor
@@ -177,6 +178,40 @@ converter tex_fmt_to_cmp_kind*(kind: TextureFormat): TextureCompressionKind =
         error &"Cannot convert '{kind}' to `TextureCompressionKind`"
         quit 1
 
+converter mtl_value_to_matkey*(val: MaterialValue): AIMatkey =
+    case val
+    of Name                     : AIMatkey.Name
+    of TwoSided                 : AIMatkey.TwoSided
+    of BaseColour               : AIMatkey.BaseColour
+    of MetallicFactor           : AIMatkey.MetallicFactor
+    of RoughnessFactor          : AIMatkey.RoughnessFactor
+    of SpecularFactor           : AIMatkey.SpecularFactor
+    of GlossinessFactor         : AIMatkey.GlossinessFactor
+    of AnisotropyFactor         : AIMatkey.AnisotropyFactor
+    of SheenColourFactor        : AIMatkey.SheenColourFactor
+    of SheenRoughnessFactor     : AIMatkey.SheenRoughnessFactor
+    of ClearcoatFactor          : AIMatkey.ClearcoatFactor
+    of ClearcoatRoughnessFactor : AIMatkey.ClearcoatRoughnessFactor
+    of Opacity                  : AIMatkey.Opacity
+    of BumpScaling              : AIMatkey.BumpScaling
+    of Shininess                : AIMatkey.Shininess
+    of Reflectivity             : AIMatkey.Reflectivity
+    of RefractiveIndex          : AIMatkey.RefractiveIndex
+    of ColourDiffuse            : AIMatkey.ColourDiffuse
+    of ColourAmbient            : AIMatkey.ColourAmbient
+    of ColourSpecular           : AIMatkey.ColourSpecular
+    of ColourEmissive           : AIMatkey.ColourEmissive
+    of ColourTransparent        : AIMatkey.ColourTransparent
+    of ColourReflective         : AIMatkey.ColourReflective
+    of TransmissionFactor       : AIMatkey.TransmissionFactor
+    of VolumeThicknessFactor    : AIMatkey.VolumeThicknessFactor
+    of VolumeAttenuationDistance: AIMatkey.VolumeAttenuationDistance
+    of VolumeAttenuationColour  : AIMatkey.VolumeAttenuationColour
+    of EmissiveIntensity        : AIMatkey.EmissiveIntensity
+    of None:
+        error &"Should not be converting '{val}' to AIMatkey"
+        quit 1
+
 proc `$`*(header: Header): string =
     let valid_msg = if header.magic == NAIMagic: "valid" else: "invalid"
     let vert_kinds = header.vertex_kinds.filter_it   : it != None
@@ -205,7 +240,7 @@ func size*(kind: VertexKind): int =
 
 func size*(kind: MaterialValue): int =
     case kind
-    of DoubleSided:
+    of TwoSided:
         1
     of BaseColour, VolumeAttenuationColour,
        ColourDiffuse , ColourAmbient    , ColourSpecular,
@@ -232,3 +267,4 @@ static:
     assert (sizeof MeshHeader)     == 12
     assert (sizeof MaterialHeader) == 4
     assert (sizeof TextureHeader)  == 8
+

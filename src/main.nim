@@ -246,7 +246,7 @@ when is_main_module:
     #     header.write_materials scene, file, $out_file
     #     close file
     # of "analyze":
-        # analyze $out_file, mtl_data
+    #     analyze $out_file, mtl_data
     analyze $out_file, mtl_data
 
     free_scene scene

@@ -108,18 +108,23 @@ proc write_materials*(header: Header; scene: ptr AIScene; file: Stream; output_n
         info $mtl[]
 
         # Header
-        let tex_datas  = @[mtl.get_tex Diffuse, mtl.get_tex Normals, mtl.get_tex Metalness]
+        # let tex_datas  = @[mtl.get_tex Diffuse, mtl.get_tex Normals, mtl.get_tex Metalness]
+        let tex_datas  = @[mtl.get_tex Diffuse]
         let mtl_header = MaterialHeader(texture_count: uint16 tex_datas.len)
         file.write mtl_header
 
         # Material data
-        var buf: array[4, float32]
         for val in header.material_values:
             if val == None:
                 continue
 
-            # TODO: actually fetch the material values
-            file.write_data buf.addr, val.size
+            let buf = mtl.get_value val
+            case buf.kind
+            of Boolean: file.write_data buf.bln.addr, 4
+            of Integer: file.write_data buf.num.addr, 4
+            of Float  : file.write_data buf.flt.addr, 4
+            of String : assert false, "TODO"# file.write_data buf.str.addr, 4
+            of Vector : file.write_data buf.vec.addr, 16
 
         # Textures
         for tex_data in tex_datas:
@@ -157,15 +162,3 @@ proc write_materials*(header: Header; scene: ptr AIScene; file: Stream; output_n
             else:
                 assert false
 
-# proc write_textures*(scene: ptr Scene; file: Stream; output_name: string; verbose: bool) =
-    # discard
-    # for texture in to_oa(scene.textures, scene.texture_count):
-    #     if verbose:
-    #         echo $texture[]
-    #     var fmt_hint = new_string MaxTextureHintLen
-    #     copy_mem(fmt_hint[0].addr, texture.format_hint[0].addr, MaxTextureHintLen)
-        # if TexturesExternal in output_flags:
-        #     let texture_name = &"{output_name[0 ..^ 5]}-{}.{fmt_hint}"
-        #     var file = open_file_stream(texture_name, fmWrite)
-        #     file.write_data(texture.data[0].addr, int texture.width)
-        #     close file

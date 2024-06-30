@@ -89,3 +89,4 @@ func `$`*(aabb: AIAABB): string =
     result = &"[max({max.x:.2f}, {max.y:.2f}, {max.z:.2f}) -> min({min.x:.2f}, {min.y:.2f}, {min.z:.2f})]"
 
 proc get_assimp_error*(): cstring {.importc: "aiGetErrorString", dynlib: AssimpPath.}
+

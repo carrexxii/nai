@@ -3,7 +3,7 @@
 # For a copy, see the LICENSE file or <https://www.gnu.org/licenses/>.
 
 import std/options, common
-from std/strutils import to_lower_ascii
+from std/strutils import to_lower_ascii, align_left
 
 const AIMaxTextureHintLen* = 9
 
@@ -192,6 +192,20 @@ type
         map_mode*    : AITextureMapMode
         flags*       : AITextureFlag
 
+    AITextureValueKind* = enum
+        Boolean
+        Integer
+        Float
+        String
+        Vector
+    AITextureValue* = object
+        case kind*: AITextureValueKind
+        of Boolean: bln*: bool
+        of Integer: num*: int
+        of Float  : flt*: float32
+        of String : str*: string
+        of Vector : vec*: array[4, float32]
+
 const
     Unlit*               = NoShading
     DefaultMaterialName* = "DefaultMaterial"
@@ -220,9 +234,7 @@ using
 proc texture_type_to_string*(kind: AITextureKind): cstring                                             {.importc: "aiTextureTypeToString"    .}
 proc get_material_property*(pmtl; key; kind, index: cuint; prop_out): AIReturn                         {.importc: "aiGetMaterialProperty"    .}
 proc get_material_float_array*(pmtl; key; kind, index: cuint; real_out; count: ptr cuint): AIReturn    {.importc: "aiGetMaterialFloatArray"  .}
-proc get_material_float*(pmtl; key; kind, index: cuint; real_out): AIReturn                            {.importc: "aiGetMaterialFloat"       .}
 proc get_material_integer_array*(pmtl; key; kind, index: cuint; uint_out; count: ptr cuint): AIReturn  {.importc: "aiGetMaterialIntegerArray".}
-proc get_material_integer*(pmtl; key; kind, index: cuint; uint_out): AIReturn                          {.importc: "aiGetMaterialInteger"     .}
 proc get_material_color*(pmtl; key; kind, index: cuint; colour_out: ptr AIColour): AIReturn            {.importc: "aiGetMaterialColor"       .}
 proc get_material_uv_transform*(pmtl; key; kind, index: cuint; trans_out: ptr AIUVTransform): AIReturn {.importc: "aiGetMaterialUVTransform" .}
 proc get_material_string*(pmtl; key; kind, index: cuint; str_out: ptr AIString): AIReturn              {.importc: "aiGetMaterialString"      .}
@@ -237,31 +249,6 @@ proc get_material_texture*(pmtl; kind: AITextureKind; index: cuint; path: ptr AI
 
 template `$`*(kind: AITextureKind): string =
     $(texture_type_to_string kind)
-
-template gen_matkey_set(name; base_kind: AIMatkey) =
-    template `matkey name`(kind: AITextureKind; n: int): auto = (base_kind, kind, n)
-    template `matkey name diffuse`*     (n: int): auto = `matkey name`(Diffuse     , n)
-    template `matkey name specular`*    (n: int): auto = `matkey name`(Specular    , n)
-    template `matkey name ambient`*     (n: int): auto = `matkey name`(Ambient     , n)
-    template `matkey name emissive`*    (n: int): auto = `matkey name`(Emissive    , n)
-    template `matkey name normals`*     (n: int): auto = `matkey name`(Normals     , n)
-    template `matkey name height`*      (n: int): auto = `matkey name`(Height      , n)
-    template `matkey name shininess`*   (n: int): auto = `matkey name`(Shininess   , n)
-    template `matkey name opacity`*     (n: int): auto = `matkey name`(Opacity     , n)
-    template `matkey name displacement`*(n: int): auto = `matkey name`(Displacement, n)
-    template `matkey name lightmap`*    (n: int): auto = `matkey name`(Lightmap    , n)
-    template `matkey name reflection`*  (n: int): auto = `matkey name`(Reflection  , n)
-
-gen_matkey_set(texture       , TextureBase)
-gen_matkey_set(uvw_src       , UVWSrcBase)
-gen_matkey_set(tex_op        , TexOpBase)
-gen_matkey_set(mapping       , MappingBase)
-gen_matkey_set(tex_blend     , TexBlendBase)
-gen_matkey_set(mapping_mode_u, MappingModeUBase)
-gen_matkey_set(mapping_mode_v, MappingModeVBase)
-gen_matkey_set(tex_map_axis  , TexMapAxisBase)
-gen_matkey_set(uv_transform  , UVTransformBase)
-gen_matkey_set(tex_flags     , TexFlagsBase)
 
 proc texture_count*(mtl: ptr AIMaterial; kind: AITextureKind): int =
     int (mtl.get_material_texture_count kind)
@@ -289,9 +276,45 @@ proc textures*(mtl: ptr AIMaterial): seq[AITextureData] =
             if is_some data:
                 result.add (get data)
 
+proc get_value*(mtl: ptr AIMaterial; key: AIMatkey): AITextureValue =
+    var res: AIReturn
+    template get(T: typedesc) =
+        when T is array[4, float32]:
+            result = AITextureValue(kind: Vector)
+            res = mtl.get_material_float_array($key, 0, 0, cast[ptr UncheckedArray[AIReal]](result.vec[0].addr), nil)
+        elif T is float32:
+            result = AITextureValue(kind: Float)
+            res = mtl.get_material_float_array($key, 0, 0, cast[ptr UncheckedArray[AIReal]](result.flt.addr), nil)
+        elif T is string:
+            var buf: AIString
+            res = mtl.get_material_string($key, 0, 0, buf.addr)
+            result = AITextureValue(
+                kind: String,
+                str : $buf,
+            )
+
+    case key
+    of Name: get string
+    of TwoSided: get bool
+    of BaseColour               , ColourDiffuse     , ColourAmbient,
+       ColourSpecular           , ColourEmissive    , ColourTransparent,
+       ColourReflective         , TransmissionFactor, VolumeThicknessFactor,
+       VolumeAttenuationDistance, EmissiveIntensity: get array[4, float32]
+    of MetallicFactor      , RoughnessFactor , SpecularFactor,
+       GlossinessFactor    , AnisotropyFactor, SheenColourFactor,
+       SheenRoughnessFactor, ClearcoatFactor , ClearcoatRoughnessFactor,
+       Opacity             , BumpScaling     , Shininess,
+       Reflectivity        , RefractiveIndex , VolumeAttenuationColour: get float32
+    else:
+        assert false, &"'{key}' has not been implemented"
+
+    if res != Success:
+        echo &"Failed to get material data ({key}) for {mtl[]}"
+
 proc `$`*(mtl: AIMaterial): string =
+    let name = (mtl.addr.get_value Name).str
     var prop: array[AIMatkey, ptr AIMaterialProperty]
-    result = &"Material ({mtl.allocated_count}B allocated for {mtl.properties_count} properties)\n"
+    result = &"Material '{name}' ({mtl.allocated_count}B allocated for {mtl.properties_count} properties)\n"
     # for key in Matkey:
     #     if get_material_property(mtl.addr, $key, 0, 0, prop[key].addr) == Success:
     #         result &= cyan &"    {key}\n"
@@ -302,7 +325,8 @@ proc `$`*(mtl: AIMaterial): string =
             let data = mtl.addr.texture kind
             if is_some data:
                 let data = get data
-                result &= &"    {count} {kind} ([{data.uv_index}] {data.path})\n"
+                result &= (&"    {count} {kind}").align_left 32
+                result &= &"(UVs: {data.uv_index}; Path: '{data.path}')\n"
 
 
 proc `$`*(texture: AITexture): string =
