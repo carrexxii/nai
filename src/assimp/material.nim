@@ -212,9 +212,6 @@ const
     DefaultMaterialName* = "DefaultMaterial"
     MaxTextureKinds*     = (int high AITextureKind) + 1
 
-template `or`(a, b: AITextureFlag): AITextureFlag {.warning[HoleEnumConv]: off.} =
-    TextureFlag ((cint a) or (cint b))
-
 func `$`(prop: AIMaterialProperty): string =
     let key = &"\"{prop.key}\""
     result = &"Material property ({key}) of kind {prop.kind}: "
@@ -314,29 +311,24 @@ proc get_value*(mtl: ptr AIMaterial; key: AIMatkey): AITextureValue =
     if res != Success:
         echo &"Failed to get material data ({key}) for {mtl[]}"
 
-proc `$`*(mtl: AIMaterial): string =
-    let name = (mtl.addr.get_value Name).str
-    var prop: array[AIMatkey, ptr AIMaterialProperty]
-    result = &"Material '{name}' ({mtl.allocated_count}B allocated for {mtl.properties_count} properties)\n"
-    # for key in Matkey:
-    #     if get_material_property(mtl.addr, $key, 0, 0, prop[key].addr) == Success:
-    #         result &= cyan &"    {key}\n"
-
+proc `$`*(mtl_in: AIMaterial | ptr AIMaterial): string =
+    let mtl = when mtl_in is AIMaterial: mtl_in.addr else: mtl_in
+    result = &"Material '{(mtl.get_value Name).str}'\n"
     for kind in AITextureKind:
-        let count = mtl.addr.texture_count kind
-        for i in 0 ..< count:
-            let data = mtl.addr.texture kind
+        let count = mtl.texture_count kind
+        for i in 0..<count:
+            let data = mtl.texture kind
             if is_some data:
                 let data = get data
-                result &= (&"    {count} {kind}").align_left 32
+                result &= (&"    {count} {kind}").align_left 28
                 result &= &"(UVs: {data.uv_index}; Path: '{data.path}')\n"
 
-proc `$`*(texture: AITexture): string =
+proc `$`*(tex: AITexture | ptr AITexture): string =
     var fmt_hint = new_string AIMaxTextureHintLen
-    copy_mem(fmt_hint[0].addr, texture.format_hint[0].addr, AIMaxTextureHintLen)
-    result = &"""
-Texture '{texture.filename}' ({texture.width}x{texture.height}):
-    Format hint      -> {fmt_hint}
-    Data is internal -> {texture.data != nil}
+    copy_mem(fmt_hint[0].addr, tex.format_hint[0].addr, AIMaxTextureHintLen)
+    &"""
+Texture '{tex.filename}' ({tex.width}x{tex.height}):
+    Format hint         '{fmt_hint}'
+    Data is internal    {tex.data != nil}
 """
 

@@ -14,3 +14,12 @@ type AICamera* = object
     clip_far*   : float32
     aspect*     : float32
     ortho_width*: float32
+
+func `$`*(cam: AICamera | ptr AICamera): string = &"""
+AICamera '{cam.name}' with horizontal fov of {cam.hfov:.2f}, aspect ratio {cam.aspect} and orthogonal width of {cam.ortho_width}
+    Position      {cam.position}
+    Up            {cam.up}
+    Look At       {cam.look_at}
+    Clip Near/Far {cam.clip_near}/{cam.clip_far}
+"""
+

@@ -19,7 +19,7 @@ type
         direction*            : AIVec3
         up*                   : AIVec3
         attenuation_constant* : float32
-        attenuation_linea*    : float32
+        attenuation_linear*   : float32
         attenuation_quadratic*: float32
         colour_diffuse*       : AIColour3
         colour_specular*      : AIColour3
@@ -27,3 +27,12 @@ type
         angle_inner_cone*     : float32
         angle_outer_cone*     : float32
         size*                 : AIVec2
+
+func `$`*(light: AILight | ptr AILight): string = &"""
+AILight '{light.name}' is {light.kind} with size {light.size}
+    Position/Direction/Up                  {light.position}/{light.direction}/{light.up}
+    Attentuation Constant/Linear/Quadratic {light.attenuation_constant}/{light.attenuation_linear}/{light.attenuation_quadratic}
+    Colour Diffuse/Specular/Ambient        {light.colour_diffuse}/{light.colour_specular}/{light.colour_ambient}
+    Angle Outer Cone/Inner Cone            {light.angle_inner_cone}/{light.angle_outer_cone}
+"""
+

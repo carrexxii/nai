@@ -15,7 +15,7 @@ type
         name               : AIString
         duration           : float64
         ticks_per_second   : float64
-        channels_count     : uint32
+        channel_count      : uint32
         channels           : ptr UncheckedArray[ptr AINodeAnim]
         mesh_channel_count : uint32
         mesh_channels      : ptr UncheckedArray[ptr AIMeshAnim]
@@ -55,3 +55,12 @@ type
     AIQuatKey* = object
         time : float64
         value: AIQuat
+
+func `$`*(anim: AIAnimation | ptr AIAnimation): string = &"""
+AIAnimation '{anim.name}'
+    {anim.duration} Duration
+    {anim.ticks_per_second} Ticks per second
+    {anim.channel_count} Channel
+    {anim.mesh_channel_count} Mesh channels
+"""
+

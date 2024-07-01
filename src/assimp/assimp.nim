@@ -87,6 +87,18 @@ Scene '{scene.name}' from '{file_name}' ({scene.flags})
     {scene.skeleton_count:2.} Skeletons
     {scene.camera_count:2.} Cameras
     {scene.light_count:2.} Lights
-
 """
+    template for_each(arr, count) =
+        if count > 0:
+            for item in arr.to_oa count:
+                echo $item
+
+    for_each scene.meshes    , scene.mesh_count
+    for_each scene.materials , scene.material_count
+    for_each scene.textures  , scene.texture_count
+    for_each scene.animations, scene.animation_count
+    for_each scene.skeletons , scene.skeleton_count
+    for_each scene.lights    , scene.light_count
+    for_each scene.cameras   , scene.camera_count
+    # TODO: meta data
 

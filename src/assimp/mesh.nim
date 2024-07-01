@@ -69,16 +69,23 @@ type
         local_mat*   : AIMat4x4
 
     AISkeleton* = object
-        name*       : AIString
-        bones_count*: uint32
-        bones*      : ptr UncheckedArray[ptr AIBone]
+        name*      : AIString
+        bone_count*: uint32
+        bones*     : ptr UncheckedArray[ptr AIBone]
 
     AIFace* = object
         index_count*: uint32
         indices*    : ptr UncheckedArray[uint32]
 
-func `$`*(mesh: AIMesh | ptr AIMesh): string =
-    &"""
-AIMesh '{mesh.name}'
+func `$`*(mesh: AIMesh | ptr AIMesh): string = &"""
+AIMesh '{mesh.name}' of {mesh.primitive_kinds}
+    {mesh.vertex_count} Vertices
+    {mesh.face_count} Faces
+    {mesh.bone_count} Bones
+    {mesh.anim_mesh_count} Animation Meshes (morph method is {mesh.morph_method})
+    AABB = {mesh.aabb}
 """
+
+func `$`*(skel: AISkeleton | ptr AISkeleton): string =
+    &"AISkeleton '{skel.name}' with {skel.bone_count} bones"
 
