@@ -123,7 +123,8 @@ typedef enum NaiTextureFormat {
 
 typedef enum NaiMaterialValueType {
     NAI_MATERIAL_NONE,
-    NAI_MATERIAL_DOUBLE_SIDED,
+    NAI_MATERIAL_NAME,
+    NAI_MATERIAL_TWO_SIDED,
     NAI_MATERIAL_BASE_COLOUR,
     NAI_MATERIAL_METALLIC_FACTOR,
     NAI_MATERIAL_ROUGHNESS_FACTOR,
@@ -201,3 +202,4 @@ static_assert(sizeof(NaiMaterialHeader) == 4);
 static_assert(sizeof(NaiTextureHeader)  == 8);
 
 #endif
+

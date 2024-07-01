@@ -13,6 +13,7 @@ from std/setutils import full_set
 const ConfigFileName = "nai.ini"
 let cwd = get_current_dir()
 
+# TODO: texture format + container validation
 proc validate(scene: ptr AIScene; output_errs: bool): int =
     proc check(val: uint; name: string): int =
         result = if val != 0: 1 else: 0
@@ -40,9 +41,9 @@ proc write_help() =
     verbose = true
 
     info "Nai - Copyright (C) 2024 carrexxii. All rights reserved."
-    info "This program comes with ABSOLUTELY NO WARRANTY and is licensed under the terms"
-    info "of the GNU General Public License version 3 only."
-    info "For a copy, see the LICENSE file or <https://www.gnu.org/licenses/>.\n"
+    info "    This program comes with ABSOLUTELY NO WARRANTY and is licensed under the terms"
+    info "    of the GNU General Public License version 3 only."
+    info "    For a copy, see the LICENSE file or <https://www.gnu.org/licenses/>.\n"
 
     info "Usage:"
     info "    nai [command] <file> [options]\n"
@@ -89,10 +90,7 @@ proc bool_opt(key, val: string): bool =
         error &"\tFalse-y: {falsy.join  \", \"},"
         quit 1
 
-proc parse_config(cfg_file: Path): tuple[header: Header,
-                                         mtls  : seq[tuple[kind     : TextureKind,
-                                                           format   : TextureFormat,
-                                                           container: ContainerKind]]] =
+proc parse_config(cfg_file: Path): tuple[header: Header; tex_descrips: seq[TextureDescriptor]] =
     func string_of_output_flags(): string {.compileTime.} =
         result = "\t"
         const set_str = $(full_set LayoutFlag)
@@ -138,11 +136,14 @@ proc parse_config(cfg_file: Path): tuple[header: Header,
                         quit 1
                 else:
                     try:
-                        let dst  = v.split '.'
-                        result.mtls.add (
-                            kind     : parse_enum[TextureKind] k,
+                        let dst = if '.' in v: v.split '.' else: @[v, ""]
+                        result.tex_descrips.add TextureDescriptor(
+                            kind     : parse_enum[TextureKind]   k,
                             format   : parse_enum[TextureFormat] dst[0],
-                            container: parse_enum[ContainerKind] dst[1],
+                            container: (if dst[1] == "":
+                                            None
+                                        else:
+                                            parse_enum[ContainerKind] dst[1]),
                         )
                     except ValueError:
                         error &"Invalid values for material: '{k}', '{v}'"
@@ -223,8 +224,10 @@ when is_main_module:
 
     var (header, mtl_data) = parse_config cfg_file
 
-    var scene = import_file($in_file, GenBoundingBoxes or RemoveRedundantMaterials)
-    if command != "analyze":
+
+    case command
+    of "convert":
+        var scene = import_file($in_file, GenBoundingBoxes or RemoveRedundantMaterials)
         info &"Scene '{scene.name}' ('{in_file}' -> '{out_file}')"
         info &"\tMeshes     -> {scene.mesh_count}"
         info &"\tMaterials  -> {scene.material_count}"
@@ -234,19 +237,17 @@ when is_main_module:
         info &"\tCameras    -> {scene.camera_count}"
         info &"\tSkeletons  -> {scene.skeleton_count}"
 
-    if validate(scene, not quiet) != 0 and not ignore:
-        error &"File '{in_file}' contains unsupported components (use -f/--force/--ignore to continue regardless)"
-        quit 1
+        if validate(scene, not quiet) != 0 and not ignore:
+            error &"File '{in_file}' contains unsupported components (use -f/--force/--ignore to continue regardless)"
+            quit 1
 
-    # case command
-    # of "convert":
-    #     var file = open_file_stream($out_file, fmWrite)
-    #     header.write_header    scene, file
-    #     header.write_meshes    scene, file
-    #     header.write_materials scene, file, $out_file
-    #     close file
-    # of "analyze":
-    #     analyze $out_file, mtl_data
-    analyze $out_file, mtl_data
+        var file = open_file_stream($out_file, fmWrite)
+        header.write_header    scene, file
+        header.write_meshes    scene, file
+        header.write_materials scene, file, mtl_data, $out_file
 
-    free_scene scene
+        close file
+        free_scene scene
+    of "analyze":
+        analyze $in_file, mtl_data
+

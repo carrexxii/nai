@@ -49,6 +49,7 @@ type
         Terrain           = 0x0000_0010
         AllowShared       = 0x0000_0020
 
+# TODO: fix this
 func `or`*(a, b: AIProcessFlag): AIProcessFlag {.warning[holeEnumConv]: off.} = cast[AIProcessFlag]((cuint a) or (cuint b))
 func `or`*(a, b: AISceneFlag)  : AISceneFlag   {.warning[holeEnumConv]: off.} = cast[AISceneFlag]  ((cuint a) or (cuint b))
 
@@ -96,3 +97,4 @@ proc get_extension_list*(): seq[string] =
     var lst: AIString
     get_extension_list lst.addr
     result = ($lst).split ';'
+

@@ -140,10 +140,7 @@ proc write_meshes(header: Header; file: FileStream; file_name: string) =
         let mtl_pos   = file.get_position() + vert_size*(int mesh.vert_count) + inds_size
         file.set_position mtl_pos
 
-proc write_materials(header: Header; file: FileStream; file_name: string;
-                     mtl_data: seq[tuple[kind     : TextureKind,
-                                         format   : TextureFormat,
-                                         container: ContainerKind]]) =
+proc write_materials(header: Header; file: FileStream; file_name: string; mtl_data: seq[TextureDescriptor]) =
     var material: MaterialHeader
     for i in 0..<int header.material_count:
         # Header
@@ -184,10 +181,12 @@ proc write_materials(header: Header; file: FileStream; file_name: string;
             # Skip the texture data
             file.set_position (file.get_position() + tex_size)
 
-proc analyze*(file_name: string; mtl_data: seq[tuple[kind     : TextureKind,
-                                                     format   : TextureFormat,
-                                                     container: ContainerKind]]) =
-    var file = open_file_stream(file_name, fmRead)
+proc analyze*(file_name: string; mtl_data: seq[TextureDescriptor]) =
+    var file: FileStream
+    try: file = open_file_stream(file_name, fmRead)
+    except IOError:
+        error &"Failed to open '{file_name}'"
+        quit 1
 
     var header: Header
     if file.read_data(header.addr, sizeof Header) != sizeof Header:

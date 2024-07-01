@@ -247,19 +247,16 @@ proc encode_dds*(kind: TextureCompressionKind; data: openArray[byte]; w, h, mip_
         ),
     )
 
-proc write*(dds_file: DDSFile; file_name: string) =
+proc write*(file: FileStream; dds_file: DDSFile) =
     assert dds_file.header.size == DDSHeaderSize
 
-    let magic = DDSMagic
-    var file = open_file_stream(file_name, fmWrite)
-    file.write_data(magic.addr          , sizeof DDSMagic)
-    file.write_data(dds_file.header.addr, sizeof DDSHeader)
+    file.write DDSMagic
+    file.write dds_file.header
     if dds_file.header.pf.fourcc == ['D', 'X', '1', '0']:
-        file.write_data(dds_file.dxt10_header.addr, sizeof DDSHeaderDXT10)
-    file.write_data(dds_file.data, dds_file.data_size)
-    close file
-    quit 0
+        file.write dds_file.dxt10_header
+    file.write_data dds_file.data, dds_file.data_size
 
 static:
     assert (sizeof DDSHeader)      == DDSHeaderSize
     assert (sizeof DDSPixelFormat) == DDSPixelFormatSize
+

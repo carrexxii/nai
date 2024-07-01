@@ -299,12 +299,14 @@ proc get_value*(mtl: ptr AIMaterial; key: AIMatkey): AITextureValue =
     of BaseColour               , ColourDiffuse     , ColourAmbient,
        ColourSpecular           , ColourEmissive    , ColourTransparent,
        ColourReflective         , TransmissionFactor, VolumeThicknessFactor,
-       VolumeAttenuationDistance, EmissiveIntensity: get array[4, float32]
+       VolumeAttenuationDistance, EmissiveIntensity , VolumeAttenuationColour:
+       get array[4, float32]
     of MetallicFactor      , RoughnessFactor , SpecularFactor,
        GlossinessFactor    , AnisotropyFactor, SheenColourFactor,
        SheenRoughnessFactor, ClearcoatFactor , ClearcoatRoughnessFactor,
        Opacity             , BumpScaling     , Shininess,
-       Reflectivity        , RefractiveIndex , VolumeAttenuationColour: get float32
+       Reflectivity        , RefractiveIndex:
+       get float32
     else:
         assert false, &"'{key}' has not been implemented"
 
@@ -337,3 +339,4 @@ Texture '{texture.filename}' ({texture.width}x{texture.height}):
     Format hint      -> {fmt_hint}
     Data is internal -> {texture.data != nil}
 """
+

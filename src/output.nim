@@ -50,6 +50,7 @@ proc write_meshes*(header: Header; scene: ptr AIScene; file: Stream) =
             error "Mesh contains non-triangle primitives"
             return
 
+        # Header
         let mesh_header = MeshHeader(
             material_index: uint16 mesh.material_index,
             index_size    : Index32,
@@ -58,45 +59,59 @@ proc write_meshes*(header: Header; scene: ptr AIScene; file: Stream) =
         )
         file.write mesh_header
 
-        if VerticesInterleaved in header.layout_mask:
-            var vert_mem  = cast[ptr UncheckedArray[uint8]](alloc (vert_size * (int mesh.vertex_count)))
-            for (i, pair) in enumerate [(Position, mesh.vertices),
-                                        (Normal  , mesh.normals),
-                                        (UV      , mesh.texture_coords[0])]: # TODO: deal with other texture_coords
-                let (kind, data) = pair
-                var offset = 0
-                for flag in header.vertex_kinds:
-                    if flag == kind:
-                        break
-                    offset += flag.size
-
-                var p = offset
-                for v in 0 ..< mesh.vertex_count:
-                    copy_mem vert_mem[p].addr, data[v].addr, kind.size
-                    p += vert_size
-
-            file.write_data vert_mem, vert_size * (int mesh.vertex_count)
-            dealloc vert_mem
-
-            for face in to_oa(mesh.faces, mesh.face_count):
-                for index in to_oa(face.indices, face.index_count):
-                    let index32 = uint32 index
-                    file.write_data index32.addr, sizeof index32
-
-        elif VerticesSeparated in header.layout_mask:
+        # TODO
+        if VerticesSeparated in header.layout_mask:
             assert false
 
-proc write_materials*(header: Header; scene: ptr AIScene; file: Stream; output_name: string) =
-    proc get_tex(mtl: ptr AIMaterial; kind: AITextureKind): AITextureData =
+        # Vertices
+        let vert_kinds = header.vertex_kinds.filter_it: it != None
+        let interleave = VerticesInterleaved in header.layout_mask
+        var vert_mem  = cast[ptr UncheckedArray[uint8]](alloc vert_size * int mesh.vertex_count)
+        var offset = 0
+        for (i, kind) in enumerate vert_kinds:
+            var p = offset
+            for v in 0..<mesh.vertex_count:
+                let dst = vert_mem[p].addr
+                var src: pointer
+                case kind
+                of Position  : src = mesh.vertices[i].addr
+                of Normal    : src = mesh.normals[i].addr
+                of Tangent   : src = mesh.tangents[i].addr
+                of Bitangent : src = mesh.bitangents[i].addr
+                of ColourRGBA: src = mesh.colours[i].addr
+                of ColourRGB : src = mesh.colours[i].addr
+                of UV        : src = mesh.texture_coords[0][i].addr
+                of UV3       : src = mesh.texture_coords[0][i].addr
+                else: assert false
+
+                copy_mem dst, src, kind.size
+                p += vert_size
+
+            offset += kind.size
+
+        file.write_data vert_mem, vert_size * int mesh.vertex_count
+        dealloc vert_mem
+
+        for face in mesh.faces.to_oa mesh.face_count:
+            for index in face.indices.to_oa face.index_count:
+                let index32 = uint32 index
+                file.write_data index32.addr, sizeof index32
+
+proc write_materials*(header: Header; scene: ptr AIScene; file: Stream; tex_descrips: seq[TextureDescriptor]; output_name: string) =
+    if {TexturesInternal, TexturesExternal} * header.layout_mask == {}:
+        return
+
+    proc check_tex(mtl: ptr AIMaterial; kind: AITextureKind): bool =
+        result = true
         let count = mtl.texture_count kind
         if count == 0:
-            error &"Material does not have any '{kind}' texture"
-            quit 1
+            warning &"Material does not have any '{kind}' texture"
+            result = false
         elif count > 1:
             warning &"Material has {count} {kind} textures, but only 1 is supported"
-
+    proc get_tex(mtl: ptr AIMaterial; kind: AITextureKind): AITextureData =
         let data = mtl.texture kind
-        if is_none data:
+        if data.is_none:
             error &"Could not get material's '{kind}' texture '{get_assimp_error()}'"
             quit 1
         get data
@@ -104,12 +119,17 @@ proc write_materials*(header: Header; scene: ptr AIScene; file: Stream; output_n
     if verbose:
         discard
 
-    for mtl in to_oa(scene.materials, scene.material_count):
+    for mtl in scene.materials.to_oa scene.material_count:
         info $mtl[]
 
+        # Fetch the AI data
+        var tex_datas = tex_descrips
+        for data in mitems tex_datas:
+            let kind = cast[AITextureKind](data.kind)
+            if mtl.check_tex kind:
+                data.texture = mtl.get_tex kind
+
         # Header
-        # let tex_datas  = @[mtl.get_tex Diffuse, mtl.get_tex Normals, mtl.get_tex Metalness]
-        let tex_datas  = @[mtl.get_tex Diffuse]
         let mtl_header = MaterialHeader(texture_count: uint16 tex_datas.len)
         file.write mtl_header
 
@@ -128,37 +148,61 @@ proc write_materials*(header: Header; scene: ptr AIScene; file: Stream; output_n
 
         # Textures
         for tex_data in tex_datas:
-            if tex_data.path.starts_with "*":
-                let index     = parse_int tex_data.path[1..^1]
-                let tex       = scene.textures[index][]
-                var file_name = output_name
-                file_name.remove_suffix ".nai"
-                file_name &= &"-{to_lower_ascii $tex_data.kind}.dds"
+            let path = tex_data.texture.path
+            if path == "":
+                continue
+            elif path.starts_with "*":
+                let index = parse_int path[1..^1] # TODO: Fix for external textures
+                let tex   = scene.textures[index][]
 
+                # Header
                 let
                     raw_tex = load_image(tex.data, tex.width, 4)
                     w = raw_tex.w
                     h = raw_tex.h
-
-                # var file = open_file_stream(file_name, fmWrite)
-                # file.write_data(tex.data[0].addr, int tex.width)
-                # close file
-
-                let tex_header = TextureHeader(
-                    kind  : Diffuse,
-                    format: BC1,
-                    w     : uint16 w,
-                    h     : uint16 h,
-                )
+                    tex_header = TextureHeader(
+                        kind  : tex_data.kind,
+                        format: tex_data.format,
+                        w     : uint16 w,
+                        h     : uint16 h,
+                    )
                 file.write tex_header
 
-                let profile = BC1.get_profile()
-                let cmp_tex = profile.compress(cast[ptr byte](raw_tex.data), w, h, raw_tex.channels)
-                file.write_data(cmp_tex.data, cmp_tex.size)
+                # TODO: mipmaps
+                let mip_count = 1
 
-                # let dds_file = encode_dds(profile.kind, to_open_array(cast[ptr UncheckedArray[byte]](cmp_tex.data), 0, cmp_tex.size - 1), w, h, 1)
-                # let sz = 4 + (sizeof dds_file.header) + dds_file.data_size
-                # info &"Writing '{tex_data.kind}' texture to '{file_name}' ({sz}/{sz/1024:.2f}kB/{sz/1024/1024:.2f}MB)"
+                # Compression
+                var final_tex : ptr UncheckedArray[byte]
+                var final_size: int
+                if tex_header.format notin [NoneRGB, NoneRGBA]:
+                    let profile = get_profile tex_header.format
+                    let cmp_tex = profile.compress(cast[ptr byte](raw_tex.data), w, h, raw_tex.channels)
+                    final_tex  = cast[ptr UncheckedArray[byte]](cmp_tex.data)
+                    final_size = cmp_tex.size
+                else:
+                    final_tex  = cast[ptr UncheckedArray[byte]](raw_tex.data)
+                    final_size = (raw_tex.w * raw_tex.h * tex_header.format.bpp) div 8
+
+                # Output
+                let dst_file =
+                    if TexturesInternal in header.layout_mask:
+                        file
+                    else:
+                        let ext = to_lower_ascii (if tex_data.container != None: $tex_data.container else: $tex_data.format)
+                        var file_name = output_name
+                        file_name.remove_suffix ".nai"
+                        file_name &= &"-{to_lower_ascii $tex_data.kind}.{ext}"
+                        open_file_stream file_name, fmWrite
+
+                case tex_data.container
+                of None: dst_file.write_data final_tex, final_size
+                of PNG : dst_file.write_image PNG, int tex_header.w, int tex_header.h, tex_header.format.bpp div 8, final_tex
+                of DDS:
+                    dst_file.write encode_dds(
+                        tex_data.format,
+                        final_tex.to_oa final_size,
+                        w, h, mip_count,
+                    )
             else:
                 assert false
 

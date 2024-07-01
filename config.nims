@@ -115,9 +115,6 @@ task run, "Build and run with debug build":
 
 task test, "Run the project's tests":
     build_task()
-    if defined `dry-run`:
-        quit 0
-
     let files = (list_files tests_path).filter(proc (path: string): bool =
         not (path.endswith ".nai") and
         not (path.endswith ".dds") and
@@ -126,7 +123,7 @@ task test, "Run the project's tests":
     for file in files:
         let fname = file.split('/')[^1]
                         .split('.')[^2]
-        exec &"{bin_path} --ignore --verbose -o:{tests_path}/{fname}.nai {file}"
+        run &"{bin_path} --ignore --verbose -o:{tests_path}/{fname}.nai {file}"
 
 task info, "Print out information about the project":
     echo green &"Bou Project '{yellow bin_path}'"

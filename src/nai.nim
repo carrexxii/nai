@@ -152,6 +152,12 @@ type
         w*, h* : uint16
         # data: array[<format_size> * w * h, byte]
 
+    TextureDescriptor* = object
+        kind*     : TextureKind
+        format*   : TextureFormat
+        container*: ContainerKind
+        texture*  : AITextureData
+
 #[ -------------------------------------------------------------------- ]#
 
 converter index_size_to_int*(kind: IndexSize): int =
@@ -238,16 +244,24 @@ func size*(kind: VertexKind): int =
     of ColourRGB : 3 * (sizeof uint8)
     of UV        : 2 * (sizeof float32)
 
+func bpp*(kind: TextureFormat): int =
+    case kind
+    of None: 0
+    of RG  : 16
+    of RGB : 24
+    of RGBA: 32
+    of BC1, BC4: 4
+    of R, BC3, BC5, BC6H, BC7: 8
+    of ETC1   : 0 # TODO
+    of ASTC4x4: 0 # TODO
+
 func size*(kind: MaterialValue): int =
     case kind
-    of TwoSided:
-        1
-    of BaseColour, VolumeAttenuationColour,
-       ColourDiffuse , ColourAmbient    , ColourSpecular,
-       ColourEmissive, ColourTransparent, ColourReflective:
-        16
-    else:
-        4
+    of BaseColour       , ColourDiffuse , VolumeAttenuationColour,
+       ColourAmbient    , ColourSpecular, ColourEmissive,
+       ColourTransparent, ColourReflective: 16
+    of TwoSided: 1
+    else: 4
 
 func abbrev*(kind: VertexKind): string =
     case kind
