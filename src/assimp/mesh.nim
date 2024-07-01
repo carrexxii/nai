@@ -3,6 +3,8 @@
 # For a copy, see the LICENSE file or <https://www.gnu.org/licenses/>.
 
 import common, "../bitgen"
+from std/sequtils import foldl
+from std/strutils import join
 
 type AIPrimitiveFlag* = distinct uint32
 AIPrimitiveFlag.gen_bit_ops(
@@ -77,11 +79,24 @@ type
         index_count*: uint32
         indices*    : ptr UncheckedArray[uint32]
 
-func `$`*(mesh: AIMesh | ptr AIMesh): string = &"""
-AIMesh '{mesh.name}' of {mesh.primitive_kinds}
-    {mesh.vertex_count} Vertices
-    {mesh.face_count} Faces
-    {mesh.bone_count} Bones
+func `$`*(mesh: AIMesh | ptr AIMesh): string =
+    template ifn(p: pointer; name: string): string =
+        if p == nil: "" else: name
+    let colour_count    = mesh.colours.foldl(a + (if b == nil: 0 else: 1), 0)
+    let tex_coord_count = mesh.texture_coords.foldl(a + (if b == nil: 0 else: 1), 0)
+    let vert_kinds = [
+        mesh.vertices.ifn   "vertices",
+        mesh.normals.ifn    "normals",
+        mesh.tangents.ifn   "tangents",
+        mesh.bitangents.ifn "bitangents",
+        &"{colour_count   } colours",
+        &"{tex_coord_count} texture coords",
+    ].join ", "
+    &"""
+AIMesh '{mesh.name}' of {mesh.primitive_kinds} (has {vert_kinds})
+    {mesh.vertex_count   } Vertices
+    {mesh.face_count     } Faces
+    {mesh.bone_count     } Bones
     {mesh.anim_mesh_count} Animation Meshes (morph method is {mesh.morph_method})
     AABB = {mesh.aabb}
 """

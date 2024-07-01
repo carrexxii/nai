@@ -64,11 +64,25 @@ proc write_meshes*(header: Header; scene: ptr AIScene; file: Stream) =
             assert false
 
         # Vertices
+        func confirm_vert_kind(mesh: ptr AIMesh; kind: VertexKind): bool =
+            case kind
+            of None: false
+            of Position, Normal, Tangent , Bitangent:
+                mesh.vertex_count > 0
+            of ColourRGBA, ColourRGB:
+                mesh.colours.foldl(a + (if b == nil: 0 else: 1), 0) > 0
+            of UV, UV3:
+                mesh.texture_coords.foldl(a + (if b == nil: 0 else: 1), 0) > 0
+
         let vert_kinds = header.vertex_kinds.filter_it: it != None
         let interleave = VerticesInterleaved in header.layout_mask
         var vert_mem  = cast[ptr UncheckedArray[uint8]](alloc vert_size * int mesh.vertex_count)
         var offset = 0
         for (i, kind) in enumerate vert_kinds:
+            if not mesh.confirm_vert_kind kind:
+                warning &"Mesh '{mesh.name}' does not contain {kind} vertices"
+                continue
+
             var p = offset
             for v in 0..<mesh.vertex_count:
                 let dst = vert_mem[p].addr

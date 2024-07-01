@@ -226,7 +226,11 @@ when is_main_module:
 
     case command
     of "convert":
-        let scene = import_file($in_file, pfGenBoundingBoxes or pfRemoveRedundantMaterials)
+        var flags = pfGenBoundingBoxes or pfRemoveRedundantMaterials
+        if Tangent in header.vertex_kinds:
+            flags = flags or pfCalcTangentSpace
+
+        let scene = import_file($in_file, flags)
         info &"Scene '{scene.name}' ('{in_file}' -> '{out_file}')"
         info &"\tMeshes     -> {scene.mesh_count}"
         info &"\tMaterials  -> {scene.material_count}"
@@ -251,6 +255,6 @@ when is_main_module:
         if ($in_file).ends_with ".nai":
             analyze $in_file, mtl_data
         else:
-            let scene = import_file($in_file, pfGenBoundingBoxes or pfRemoveRedundantMaterials)
+            let scene = import_file($in_file, pfGenBoundingBoxes)
             dump scene, $in_file
 

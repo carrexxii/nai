@@ -6,7 +6,7 @@ import std/[os, strformat, strutils, sequtils, enumerate]
 
 const
     AssimpFlags = "-DASSIMP_INSTALL=OFF -DASSIMP_BUILD_TESTS=OFF -DUSE_STATIC_CRT=ON -DASSIMP_WARNINGS_AS_ERRORS=OFF " &
-                  "-DASSIMP_BUILD_ALL_EXPORTERS_BY_DEFAULT=OFF -DASSIMP_INSTALL_PDB=OFF -DASSIMP_BUILD_ZLIB=ON"
+                  "-DASSIMP_BUILD_ALL_EXPORTERS_BY_DEFAULT=OFF -DASSIMP_INSTALL_PDB=OFF -DASSIMP_BUILD_ZLIB=OFF"
 
 let
     cwd = get_current_dir()
@@ -23,24 +23,28 @@ let
          tag  : "v5.4.1",
          patch: "",
          cmds : @[&"cmake -B . -S . {AssimpFlags}",
-                  &"cmake --build . --config release -j8",
-                  &"mv bin/libassimp.so ../",
-                  &"mv contrib/zlib/*.a ../",]),
+                   "cmake --build . --config release -j8",
+                   "mv bin/libassimp.so* ../"]),
         (src  : "https://github.com/GameTechDev/ISPCTextureCompressor/",
          dst  : lib_path / "ispctc",
          tag  : "691513b4fb406eccfc2f7d7f8213c8505ff5b897",
          patch: "ispctc.patch",
-         cmds : @[&"make -f Makefile.linux -j8",
-                  &"mv build/* ../",])
+         cmds : @["make -f Makefile.linux -j8",
+                  "mv build/* ../"]),
+        (src  : "https://github.com/madler/zlib/",
+         dst  : lib_path / "zlib",
+         tag  : "v1.3.1",
+         patch: "",
+         cmds : @["./configure",
+                  "make",
+                  "mv libz.a ../"])
     ]
     entry =
         if file_exists &"{src_path}/main.nim":
             src_path / "main.nim"
         else:
             src_path / &"{cwd.split('/')[^1]}.nim"
-    linker_libs = @[
-        "libzlibstatic.a",
-    ]
+    linker_libs: seq[string] = @[]
 
     debug_flags   = &"--cc:tcc --nimCache:{build_path} -o:{bin_path} " &
                     &"--passL:\"-ldl -lm\" --tlsEmulation:on -d:useMalloc"
@@ -76,9 +80,7 @@ import std/algorithm
 proc get_libs(): string =
     var libs: seq[string] = linker_libs
     if libs == @[]:
-        for file in list_files lib_path:
-            if file.ends_with ".a":
-                libs.add file
+        libs = (list_files lib_path).filter_it(it.ends_with ".a")
     else:
         libs = linker_libs.map_it(lib_path / it)
 

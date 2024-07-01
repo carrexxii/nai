@@ -65,7 +65,7 @@ typedef enum NaiIndexSize {
 } NaiIndexSize;
 
 typedef enum NaiVertexType {
-    NAI_VERTEX_None,
+    NAI_VERTEX_NONE,
     NAI_VERTEX_POSITION,
     NAI_VERTEX_NORMAL,
     NAI_VERTEX_TANGENT,
