@@ -22,3 +22,4 @@ proc error*(msg: string) =
 
 template to_oa*(arr, c): untyped =
     to_open_array(arr, 0, int c - 1)
+

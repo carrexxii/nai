@@ -2,7 +2,7 @@
 # It is distributed under the terms of the GNU General Public License version 3 only.
 # For a copy, see the LICENSE file or <https://www.gnu.org/licenses/>.
 
-import std/options, common
+import std/options, common, "../bitgen"
 from std/strutils import to_lower_ascii, align_left
 
 const AIMaxTextureHintLen* = 9
@@ -78,12 +78,6 @@ type
         Integer
         Buffer
 
-    AITextureFlag {.size: sizeof(cint).} = enum
-        None        = 0x0
-        Invert      = 0x1
-        UseAlpha    = 0x2
-        IgnoreAlpha = 0x4
-
     AIMatkey* {.size: sizeof(cstring).} = enum
         Name                      = "?mat.name"
         TwoSided                  = "$mat.twosided"
@@ -152,6 +146,13 @@ type
     #     ClearcoatNormalTexture    = (TextureKind.Clearcoat       , 2)
     #     TransmissionTexture       = (TextureKind.Transmission    , 0)
     #     VolumeThicknessTexture    = (TextureKind.Transmission    , 1)
+
+type AITextureFlag* = distinct uint32
+AITextureFlag.gen_bit_ops(
+    Invert,
+    UseAlpha,
+    IgnoreAlpha,
+)
 
 type
     AITexture* = object
@@ -329,7 +330,6 @@ proc `$`*(mtl: AIMaterial): string =
                 let data = get data
                 result &= (&"    {count} {kind}").align_left 32
                 result &= &"(UVs: {data.uv_index}; Path: '{data.path}')\n"
-
 
 proc `$`*(texture: AITexture): string =
     var fmt_hint = new_string AIMaxTextureHintLen

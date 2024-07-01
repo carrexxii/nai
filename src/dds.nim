@@ -11,7 +11,7 @@
 
 import
     std/[streams, tables],
-    common
+    common, bitgen
 from ispctc import TextureCompressionKind
 
 converter make_fourcc(fcc: array[4, char]): uint32 =
@@ -25,44 +25,64 @@ const
     DDSHeaderSize      = 124
     DDSPixelFormatSize = 32
 
+type DDSFlag = distinct uint32
+DDSFlag.gen_bit_ops(
+    ddsCaps, ddsHeight, ddsWidth, ddsPitch,
+    _, _, _, _,
+    _, _, _, _,
+    _, _, _, ddsPixelFormat,
+    _, ddsMipmapCount, _, ddsLinearSize,
+    _, _, _, ddsDepth,
+)
+
+type DDSPixelFormatFlag = distinct uint32
+DDSPixelFormatFlag.gen_bit_ops(
+    pfAlphaPixels, pfAlpha, pfFourCC, _,
+    _, pfPalette8, pfRGB, _,
+    _, pfYUV, _, _,
+    _, _, _, _,
+    _, pfLuminance,
+)
+const pfPalette8A*  = pfPalette8  or pfAlphaPixels
+const pfLuminanceA* = pfLuminance or pfAlphaPixels
+const pfRGBA*       = pfRGB       or pfAlphaPixels
+
+type DDSSurfaceFlag = distinct uint32
+DDSSurfaceFlag.gen_bit_ops(
+    _, _, _, sfCubemap,
+    _, _, _, _,
+    _, _, _, _,
+    sfTexture, _, _, _,
+    _, _, _, _,
+    _, _, sfMipmap,
+)
+
+type DDSCubemapFlag = distinct uint32
+DDSCubemapFlag.gen_bit_ops(
+    _, _, _, _,
+    _, _, _, _,
+    _, cfCubemap, cfPositiveX, cfNegativeX,
+    cfPositiveY, cfNegativeY, cfPositiveZ, cfNegativeZ,
+    _, _, _, _,
+    _, cfVolume,
+)
+const cfAllFaces* =
+    cfPositiveX or cfNegativeX or
+    cfPositiveY or cfNegativeY or
+    cfPositiveZ or cfNegativeZ
+
+type D3DMiscFlag = distinct uint32
+D3DMiscFlag.gen_bit_ops(
+    d3GenerateMips, d3Shared, d3TextureCube, _,
+    d3DrawIndirectArgs, d3dBufferAllowRawViews, d3BufferStructured, d3ResourceClamp,
+    d3SharedKeyedMutex, d3GDICompatible, _, d3SharedNthHandle,
+    d3RestrictedContent, d3RestrictSharedResource, d3RestrictSharedResourceDriver, d3Guarded,
+    _, d3TilePool, d3Tiled, d3HWProtected,
+)
+const SharedDisplayable     = D3DMiscFlag (1 + int d3HWProtected)
+const SharedExclusiveWriter = D3DMiscFlag (2 + int d3HWProtected)
+
 type
-    DDSFlag {.size: sizeof(uint32).} = enum
-        Caps        = 0x0000_0001
-        Height      = 0x0000_0002
-        Width       = 0x0000_0004
-        Pitch       = 0x0000_0008
-        PixelFormat = 0x0000_1000
-        MipmapCount = 0x0002_0000
-        LinearSize  = 0x0008_0000
-        Depth       = 0x0080_0000
-
-    DDSPixelFormatFlag {.size: sizeof(uint32).} = enum
-        AlphaPixels = 0x0000_0001
-        Alpha       = 0x0000_0002
-        Palette8    = 0x0000_0020
-        Palette8A   = 0x0000_0021
-        FourCC      = 0x0000_0004
-        RGB         = 0x0000_0040
-        RGBA        = 0x0000_0041
-        YUV         = 0x0000_0200
-        Luminance   = 0x0002_0000
-        LuminanceA  = 0x0002_0001
-
-    DDSSurfaceFlag {.size: sizeof(uint32).} = enum
-        Cubemap = 0x0000_0008
-        Texture = 0x0000_1000
-        Mipmap  = 0x0040_0000
-
-    DDSCubemapFlag {.size: sizeof(uint32).} = enum
-        Cubemap          = 0x0000_0200
-        CubemapPositiveX = 0x0000_0400
-        CubemapNegativeX = 0x0000_0800
-        CubemapPositiveY = 0x0000_1000
-        CubemapNegativeY = 0x0000_2000
-        CubemapPositiveZ = 0x0000_4000
-        CubemapNegativeZ = 0x0000_8000
-        Volume           = 0x0020_0000
-
     DXGIFormat {.size: sizeof(uint32).} = enum
         Unknown       = 0
         R8G8B8A8UNorm = 28
@@ -80,47 +100,12 @@ type
         Texture2D
         Texture3D
 
-    D3DMiscFlag {.size: sizeof(uint32).} = enum
-        GenerateMips                 = 0x0000_0001
-        Shared                       = 0x0000_0002
-        TextureCube                  = 0x0000_0004
-        DrawIndirectArgs             = 0x0000_0010
-        BufferAllowRawViews          = 0x0000_0020
-        BufferStructured             = 0x0000_0040
-        ResourceClamp                = 0x0000_0080
-        SharedKeyedMutex             = 0x0000_0100
-        GDICompatible                = 0x0000_0200
-        SharedNthHandle              = 0x0000_0800
-        RestrictedContent            = 0x0000_1000
-        RestrictSharedResource       = 0x0000_2000
-        RestrictSharedResourceDriver = 0x0000_4000
-        Guarded                      = 0x0000_8000
-        TilePool                     = 0x0002_0000
-        Tiled                        = 0x0004_0000
-        HWProtected                  = 0x0008_0000
-        SharedDisplayable
-        SharedExclusiveWriter
-
     DDSAlphaMode {.size: sizeof(uint32).} = enum
         Unknown
         Straight
         Premultiplied
         Opaque
         Custom
-
-template flag_or(flag) =
-    func `or`*(a, b: `flag`): `flag` {.warning[HoleEnumConv]: off.} =
-        `flag` ((uint a) or (uint b))
-flag_or DDSFlag
-flag_or DDSPixelFormatFlag
-flag_or DDSSurfaceFlag
-flag_or DDSCubemapFlag
-flag_or D3DMiscFlag
-
-const CubemapAllFaces* =
-    CubemapPositiveX or CubemapNegativeX or
-    CubemapPositiveY or CubemapNegativeY or
-    CubemapPositiveZ or CubemapNegativeZ
 
 type
     DDSPixelFormat = object
@@ -176,16 +161,16 @@ func pixel_format(flags: DDSPixelFormatFlag; fourcc, cbc, rm, gm, bm, am: uint32
     )
 
 const PixelFormats = to_table {
-    NoneRGB : pixel_format(RGB , ['\0', '\0', '\0', '\0'], 24, 0x0000_00FF, 0x0000_FF00, 0x00FF_0000, 0),
-    NoneRGBA: pixel_format(RGBA, ['\0', '\0', '\0', '\0'], 32, 0x0000_00FF, 0x0000_FF00, 0x00FF_0000, 0xFF00_0000'u32),
-    BC1 : pixel_format(FourCC, ['D', 'X', 'T', '1'], 0, 0, 0, 0, 0),
-    BC3 : pixel_format(FourCC, ['D', 'X', 'T', '4'], 0, 0, 0, 0, 0), # DXT5 without alpha
-    BC4 : pixel_format(FourCC, ['A', 'T', 'I', '1'], 0, 0, 0, 0, 0),
-    BC5 : pixel_format(FourCC, ['A', 'T', 'I', '2'], 0, 0, 0, 0, 0),
-    BC6H: pixel_format(FourCC, ['D', 'X', '1', '0'], 0, 0, 0, 0, 0),
-    BC7 : pixel_format(FourCC, ['D', 'X', '1', '0'], 0, 0, 0, 0, 0),
-    ETC1: pixel_format(FourCC, ['D', 'X', '1', '0'], 0, 0, 0, 0, 0),
-    ASTC: pixel_format(FourCC, ['D', 'X', '1', '0'], 0, 0, 0, 0, 0),
+    NoneRGB : pixel_format(pfRGB , ['\0', '\0', '\0', '\0'], 24, 0x0000_00FF, 0x0000_FF00, 0x00FF_0000, 0),
+    NoneRGBA: pixel_format(pfRGBA, ['\0', '\0', '\0', '\0'], 32, 0x0000_00FF, 0x0000_FF00, 0x00FF_0000, 0xFF00_0000'u32),
+    BC1 : pixel_format(pfFourCC, ['D', 'X', 'T', '1'], 0, 0, 0, 0, 0),
+    BC3 : pixel_format(pfFourCC, ['D', 'X', 'T', '4'], 0, 0, 0, 0, 0), # DXT5 without alpha
+    BC4 : pixel_format(pfFourCC, ['A', 'T', 'I', '1'], 0, 0, 0, 0, 0),
+    BC5 : pixel_format(pfFourCC, ['A', 'T', 'I', '2'], 0, 0, 0, 0, 0),
+    BC6H: pixel_format(pfFourCC, ['D', 'X', '1', '0'], 0, 0, 0, 0, 0),
+    BC7 : pixel_format(pfFourCC, ['D', 'X', '1', '0'], 0, 0, 0, 0, 0),
+    ETC1: pixel_format(pfFourCC, ['D', 'X', '1', '0'], 0, 0, 0, 0, 0),
+    ASTC: pixel_format(pfFourCC, ['D', 'X', '1', '0'], 0, 0, 0, 0, 0),
 }
 
 func compression_to_format(kind: TextureCompressionKind): DXGIFormat =
@@ -217,16 +202,16 @@ proc encode_dds*(kind: TextureCompressionKind; data: openArray[byte]; w, h, mip_
     let pixel_format = PixelFormats[kind]
 
     var pitch: int
-    var flags = Caps or Height or Width or PixelFormat
+    var flags = ddsCaps or ddsHeight or ddsWidth or ddsPixelFormat
     if kind == NoneRGB or kind == NoneRGBA:
-        flags = flags or Pitch
+        flags = flags or ddsPitch
         pitch = (w * bpp) div 8
     else:
-        flags = flags or LinearSize
+        flags = flags or ddsLinearSize
         pitch = (w * h * bpp) div 8
 
     if mip_count > 1:
-        flags = flags or MipmapCount
+        flags = flags or ddsMipmapCount
 
     result = DDSFile(
         data: data[0].addr,
@@ -238,7 +223,7 @@ proc encode_dds*(kind: TextureCompressionKind; data: openArray[byte]; w, h, mip_
             pitch_or_linear_size: uint32 pitch,
             mipmap_count        : uint32 mip_count,
             pf                  : pixel_format,
-            surface_flags       : if mip_count > 1: Mipmap else: Texture,
+            surface_flags       : if mip_count > 1: sfMipmap else: sfTexture,
         ),
         dxt10_header: DDSHeaderDXT10(
             dxgi_format       : compression_to_format kind,

@@ -2,14 +2,16 @@
 # It is distributed under the terms of the GNU General Public License version 3 only.
 # For a copy, see the LICENSE file or <https://www.gnu.org/licenses/>.
 
-import common
+import common, "../bitgen"
 
-type AIPrimitiveFlag* {.size: sizeof(uint32).} = enum
-    Point            = 0x01
-    Line             = 0x02
-    Triangle         = 0x04
-    Polygon          = 0x08
-    NGonEncodingFlag = 0x10
+type AIPrimitiveFlag* = distinct uint32
+AIPrimitiveFlag.gen_bit_ops(
+    Point,
+    Line,
+    Triangle,
+    Polygon,
+    NGonEncodingFlag,
+)
 
 type
     AIMesh* = object
@@ -74,3 +76,9 @@ type
     AIFace* = object
         index_count*: uint32
         indices*    : ptr UncheckedArray[uint32]
+
+func `$`*(mesh: AIMesh | ptr AIMesh): string =
+    &"""
+AIMesh '{mesh.name}'
+"""
+

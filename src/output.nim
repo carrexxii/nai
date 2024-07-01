@@ -116,9 +116,6 @@ proc write_materials*(header: Header; scene: ptr AIScene; file: Stream; tex_desc
             quit 1
         get data
 
-    if verbose:
-        discard
-
     for mtl in scene.materials.to_oa scene.material_count:
         info $mtl[]
 

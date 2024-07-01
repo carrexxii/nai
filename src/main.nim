@@ -224,10 +224,9 @@ when is_main_module:
 
     var (header, mtl_data) = parse_config cfg_file
 
-
     case command
     of "convert":
-        var scene = import_file($in_file, GenBoundingBoxes or RemoveRedundantMaterials)
+        let scene = import_file($in_file, pfGenBoundingBoxes or pfRemoveRedundantMaterials)
         info &"Scene '{scene.name}' ('{in_file}' -> '{out_file}')"
         info &"\tMeshes     -> {scene.mesh_count}"
         info &"\tMaterials  -> {scene.material_count}"
@@ -249,5 +248,9 @@ when is_main_module:
         close file
         free_scene scene
     of "analyze":
-        analyze $in_file, mtl_data
+        if ($in_file).ends_with ".nai":
+            analyze $in_file, mtl_data
+        else:
+            let scene = import_file($in_file, pfGenBoundingBoxes or pfRemoveRedundantMaterials)
+            dump scene, $in_file
 

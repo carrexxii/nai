@@ -2,8 +2,8 @@
 # It is distributed under the terms of the GNU General Public License version 3 only.
 # For a copy, see the LICENSE file or <https://www.gnu.org/licenses/>.
 
-from std/strformat import `&`
-export `&`
+import "../common"
+export `&`, to_oa
 
 const
     AssimpPath* = "lib/libassimp.so"
