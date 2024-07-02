@@ -20,7 +20,7 @@ type
 
     CompressionKind* {.size: sizeof(uint16).} = enum
         None
-        ZLIB
+        ZLib
 
     ContainerKind* = enum
         None

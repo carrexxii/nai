@@ -1,2 +1,20 @@
+* Output specified as directory with automatic filename
+* Skipping compilation when output file already exists
+* Some form of header customization
+
+* Parallelization
+* Animation
+
+Textures
 * Fix ETC1 DDS export
 * Fix ASTC DDS export
+* Add proper ASTC support
+
+Compression:
+* LZ4
+* Brotli
+
+Sprites
+* Sprite sheet format
+* Sheet generation from images
+

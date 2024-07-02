@@ -4,7 +4,7 @@
 
 import
     std/[streams, parseopt, parsecfg, paths, tables, strutils],
-    common, assimp/assimp, ispctc, stbi, nai, output, analyze, dds
+    common, assimp/assimp, ispctc, stbi, compress, nai, output, analyze, dds
 from std/os       import get_app_dir
 from std/files    import file_exists
 from std/sequtils import foldl, to_seq
@@ -62,8 +62,12 @@ proc write_help() =
     info ""
     info "    --ignore    Alias for --force"
 
-    info "\nSupported formats:"
+    info  "\nSupported formats:"
     info &"""{foldl(get_extension_list(), a & " " & b, "    ")}"""
+
+    info "Compression:"
+    for lib in compress.get_versions():
+        info &"    {lib.name} {lib.version}"
 
     quit 0
 
@@ -244,12 +248,25 @@ when is_main_module:
             error &"File '{in_file}' contains unsupported components (use -f/--force/--ignore to continue regardless)"
             quit 1
 
-        var file = open_file_stream($out_file, fmWrite)
-        header.write_header    scene, file
-        header.write_meshes    scene, file
-        header.write_materials scene, file, mtl_data, $out_file
+        var buffer = new_string_stream ""
+        header.write_header    scene, buffer
+        header.write_meshes    scene, buffer
+        header.write_materials scene, buffer, mtl_data, $out_file
 
+        var file = open_file_stream($out_file, fmWrite)
+        if header.compression_kind != None:
+            # The header must not be compressed
+            let data      = cast[ptr UncheckedArray[byte]](buffer.data[sizeof Header].addr)
+            let data_size = buffer.data.len - sizeof Header
+            let cmp_data = compress(header.compression_kind, Size, data.to_oa data_size)
+
+            file.write_data buffer.data[0].addr, sizeof Header
+            file.write_data cmp_data.data      , int cmp_data.size
+        else:
+            file.write_data buffer.data[0].addr, buffer.data.len
         close file
+
+        close buffer
         free_scene scene
     of "analyze":
         if ($in_file).ends_with ".nai":

@@ -11,40 +11,45 @@ const
 let
     cwd = get_current_dir()
 
-    bin_path   = &"./{(to_exe cwd.split('/')[^1])}"
+    bin_path   = cwd / "nai"
     src_path   = "./src"
     lib_path   = "./lib"
     tools_path = "./tools"
     build_path = "./build"
     tests_path = "./tests"
-    deps: seq[tuple[src, dst, tag, patch: string; cmds: seq[string]]] = @[
+    deps: seq[tuple[src, dst, tag: string; cmds: seq[string]]] = @[
         (src  : "https://github.com/assimp/assimp",
          dst  : lib_path / "assimp",
          tag  : "v5.4.1",
-         patch: "",
          cmds : @[&"cmake -B . -S . {AssimpFlags}",
                    "cmake --build . --config release -j8",
                    "mv bin/libassimp.so* ../"]),
         (src  : "https://github.com/GameTechDev/ISPCTextureCompressor/",
          dst  : lib_path / "ispctc",
          tag  : "691513b4fb406eccfc2f7d7f8213c8505ff5b897",
-         patch: "ispctc.patch",
-         cmds : @["make -f Makefile.linux -j8",
+         cmds : @["git apply ../../ispctc.patch",
+                  "make -f Makefile.linux -j8",
                   "mv build/* ../"]),
         (src  : "https://github.com/madler/zlib/",
          dst  : lib_path / "zlib",
          tag  : "v1.3.1",
-         patch: "",
          cmds : @["./configure",
                   "make",
-                  "mv libz.a ../"])
+                  "mv libz.so* ../"]),
+        (src  : "https://raw.githubusercontent.com/nothings/stb/master/stb_image.h",
+         dst  : lib_path,
+         tag  : "",
+         cmds : @[]),
+        (src  : "https://raw.githubusercontent.com/nothings/stb/master/stb_image_write.h",
+         dst  : lib_path,
+         tag  : "",
+         cmds : @[]),
     ]
     entry =
         if file_exists &"{src_path}/main.nim":
             src_path / "main.nim"
         else:
             src_path / &"{cwd.split('/')[^1]}.nim"
-    linker_libs: seq[string] = @[]
 
     debug_flags   = &"--cc:tcc --nimCache:{build_path} -o:{bin_path} " &
                     &"--passL:\"-ldl -lm\" --tlsEmulation:on -d:useMalloc"
@@ -52,8 +57,6 @@ let
     post_release = @[""]
 
 #[ -------------------------------------------------------------------- ]#
-
-# --hints:off
 
 proc red    (s: string): string = "\e[31m" & s & "\e[0m"
 proc green  (s: string): string = "\e[32m" & s & "\e[0m"
@@ -76,38 +79,27 @@ proc run(cmd: string) =
 func is_git_repo(url: string): bool =
     (gorge_ex &"git ls-remote -q {url}")[1] == 0
 
-import std/algorithm
-proc get_libs(): string =
-    var libs: seq[string] = linker_libs
-    if libs == @[]:
-        libs = (list_files lib_path).filter_it(it.ends_with ".a")
-    else:
-        libs = linker_libs.map_it(lib_path / it)
-
-    result = libs.join " "
-
 #[ -------------------------------------------------------------------- ]#
 
 task restore, "Fetch and build dependencies":
-    run &"git submodule update --init --remote --merge --recursive -j 8"
+    run &"rm -rf {lib_path}/*"
+    run &"git submodule update --init --remote --merge -j 8"
     for dep in deps:
         if is_git_repo dep.src:
-            if not (dir_exists dep.dst):
-                run &"git submodule add {dep.src} {dep.dst}"
             with_dir dep.dst:
                 run &"git checkout {dep.tag}"
-                if dep.patch != "":
-                    run &"git apply --check --reverse {cwd / dep.patch}"
+        else:
+            run &"curl -o {lib_path / (dep.src.split '/')[^1]} {dep.src}"
 
         with_dir dep.dst:
             for cmd in dep.cmds:
                 run cmd
 
 task build, "Build the project (debug build)":
-    run &"nim c --passL:\"{get_libs()}\" {debug_flags} {entry}"
+    run &"nim c {debug_flags} {entry}"
 
 task release, "Build the project (release build)":
-    run &"nim c --passL:\"{get_libs()}\" {release_flags} {entry}"
+    run &"nim c {release_flags} {entry}"
     for cmd in post_release:
         run cmd
 
@@ -128,12 +120,14 @@ task test, "Run the project's tests":
         run &"{bin_path} --ignore --verbose -o:{tests_path}/{fname}.nai {file}"
 
 task info, "Print out information about the project":
-    echo green &"Bou Project '{yellow bin_path}'"
-    echo &"    Source dir : {yellow src_path}"
-    echo &"    Library dir: {yellow lib_path}"
-    echo &"    Tools dir  : {yellow tools_path}"
-    echo &"    Tests dir  : {yellow tests_path}"
+    echo green &"Nai '{yellow bin_path}'"
     if deps.len > 0:
         echo &"    {deps.len} Dependencies:"
     for (i, dep) in enumerate deps:
-        echo &"        [{i + 1}] {cyan dep.src} ({yellow dep.tag})"
+        let tag =
+            if is_git_repo dep.src:
+                "@" & (if dep.tag != "": dep.tag else: "HEAD")
+            else:
+                ""
+        echo &"        [{i + 1}] {cyan dep.src}{yellow tag}"
+

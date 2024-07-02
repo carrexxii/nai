@@ -5,6 +5,7 @@
 import
     std/[streams, terminal, strutils, sequtils],
     common, assimp/assimp, ispctc, nai
+from std/os import get_file_size
 
 const ShadeChars  = ["▓", "▒", "░"]
 
@@ -72,8 +73,9 @@ proc write_header(header: Header; file_name: string) =
     proc write(str: string; size: int) =
         write str, size, scale, colour
 
-    let name = &"Nai File '{file_name}'"
-    stdout.styled_write bgWhite, fgBlack, name.center(8 * scale, '-'), bgDefault, "\n"
+    let file_size = get_file_size file_name
+    let head = &"Nai File '{file_name}' ({bytes_to_string file_size})"
+    stdout.styled_write bgWhite, fgBlack, head.center(8 * scale, '-'), bgDefault, "\n"
 
     write fourcc_to_string header.magic              , sizeof Header.magic
     write &"V{header.version[0]}.{header.version[1]}", sizeof Header.version
@@ -183,7 +185,7 @@ proc write_materials(header: Header; file: FileStream; file_name: string; mtl_da
 
 proc analyze*(file_name: string; mtl_data: seq[TextureDescriptor]) =
     var file: FileStream
-    try: file = open_file_stream(file_name, fmRead)
+    try: file = file_name.open_file_stream fmRead
     except IOError:
         error &"Failed to open '{file_name}'"
         quit 1
@@ -203,8 +205,9 @@ proc analyze*(file_name: string; mtl_data: seq[TextureDescriptor]) =
         error &"Invalid header, file '{file_name}' does not appear to be a valid Nai file"
         quit 1
 
-    header.write_meshes    file, file_name
-    header.write_materials file, file_name, mtl_data
-    # assert file.at_end
-
+    if header.compression_kind == None:
+        header.write_meshes    file, file_name
+        header.write_materials file, file_name, mtl_data
+        assert file.at_end
     close file
+
