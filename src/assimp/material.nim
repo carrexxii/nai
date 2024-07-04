@@ -228,7 +228,6 @@ using
     real_out: ptr UncheckedArray[AIReal]
     uint_out: ptr UncheckedArray[cuint]
 
-{.push dynlib: AssimpPath.}
 proc texture_type_to_string*(kind: AITextureKind): cstring                                             {.importc: "aiTextureTypeToString"    .}
 proc get_material_property*(pmtl; key; kind, index: cuint; prop_out): AIReturn                         {.importc: "aiGetMaterialProperty"    .}
 proc get_material_float_array*(pmtl; key; kind, index: cuint; real_out; count: ptr cuint): AIReturn    {.importc: "aiGetMaterialFloatArray"  .}
@@ -241,7 +240,6 @@ proc get_material_texture*(pmtl; kind: AITextureKind; index: cuint; path: ptr AI
                            mapping: ptr AITextureMapping = nil; uv_index: ptr cuint = nil; blend: ptr AIReal = nil;
                            op: ptr AITextureOp = nil; map_mode: ptr AITextureMapMode = nil; flags: ptr AITextureFlag = nil):
                            AIReturn {.importc: "aiGetMaterialTexture".}
-{.pop.}
 
 #[ -------------------------------------------------------------------- ]#
 

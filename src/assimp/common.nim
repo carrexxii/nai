@@ -6,10 +6,7 @@ import "../common"
 export `&`, to_oa
 
 const
-    AssimpPath* = "lib/libassimp.so"
     NoArmaturePopulateProcess* = true
-
-const
     AIMaxStringLen*     = 1024
     AIMaxColourSets*    = 0x8
     AIMaxTextureCoords* = 0x8
@@ -88,5 +85,5 @@ func `$`*(aabb: AIAABB): string =
     let min = aabb.min
     result = &"[max({max.x:.2f}, {max.y:.2f}, {max.z:.2f}) -> min({min.x:.2f}, {min.y:.2f}, {min.z:.2f})]"
 
-proc get_assimp_error*(): cstring {.importc: "aiGetErrorString", dynlib: AssimpPath.}
+proc get_assimp_error*(): cstring {.importc: "aiGetErrorString".}
 

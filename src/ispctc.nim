@@ -5,8 +5,6 @@
 import common
 from std/math import ceil_div
 
-const ISPCTCPath = "lib/libispc_texcomp.so"
-
 type
     ProfileKind* = enum
         UltraFast
@@ -77,8 +75,6 @@ type
 
 #[ -------------------------------------------------------------------- ]#
 
-{.push dynlib: ISPCTCPath.}
-
 # BC7 with ignored alpha
 proc get_profile_ultra_fast*(settings: ptr BC7EncSettings) {.importc: "GetProfile_ultrafast".}
 proc get_profile_very_fast*( settings: ptr BC7EncSettings) {.importc: "GetProfile_veryfast" .}
@@ -124,8 +120,6 @@ proc compress_blocks_etc1*(src: ptr RGBASurface; dst: ptr byte; settings: ptr ET
 proc compress_blocks_astc*(src: ptr RGBASurface; dst: ptr byte; settings: ptr ASTCEncSettings) {.importc: "CompressBlocksASTC".}
 
 proc replicate_borders*(dst_slice, src_tex: ptr RGBASurface; x, y, bpp: cint) {.importc: "ReplicateBorders".}
-
-{.pop.}
 
 #[ -------------------------------------------------------------------- ]#
 
@@ -222,3 +216,4 @@ proc compress*(profile: CompressionProfile; src: ptr byte; w, h, bpp: int): Comp
     of ASTC: compress_blocks_astc(edged_img.addr, result.data, profile.astc.addr)
     of NoneRGB, NoneRGBA:
         assert false, &"Should not call compress with '{profile.kind}'"
+

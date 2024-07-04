@@ -1,7 +1,5 @@
 import common, nai
 
-const ZLibPath = "lib/libz.so"
-
 type
     CompressionLevel* = enum
         None
@@ -39,11 +37,11 @@ using
     src: ptr byte
     dst: ptr byte
 
-{.push dynlib: ZLibPath.}
 proc zlib_version(): cstring                                                                                {.importc: "zlibVersion"  .}
 proc zlib_compress(dst; dst_len: ptr culong; src; src_len: culong; level: ZLibCompressionLevel): ZLibReturn {.importc: "compress2"    .}
 proc zlib_compress_bound(src_len: culong): culong                                                           {.importc: "compressBound".}
-{.pop.}
+
+#[ -------------------------------------------------------------------- ]#
 
 proc get_versions*(): seq[tuple[name, version: string]] =
     @[("zlib", $zlib_version())]

@@ -58,13 +58,11 @@ type AIScene* = object
 # TODO: variable index size with an 'auto` option that detects size needed
 # TODO: import_file interface for memory load
 #       property imports
-{.push dynlib: AssimpPath.}
 proc is_extension_supported*(ext: cstring): bool                     {.importc: "aiIsExtensionSupported".}
 proc get_extension_list*(lst: ptr AIString)                          {.importc: "aiGetExtensionList"    .}
 proc import_file*(path: cstring; flags: uint32): ptr AIScene         {.importc: "aiImportFile"          .}
 proc process*(scene: ptr AIScene; flags: AIProcessFlag): ptr AIScene {.importc: "aiApplyPostProcessing" .}
 proc free_scene*(scene: ptr AIScene)                                 {.importc: "aiReleaseImport"       .}
-{.pop.}
 
 proc import_file*(path: string; flags: AIProcessFlag): ptr AIScene =
     result = import_file(path.cstring, flags.uint32)
