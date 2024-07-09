@@ -7,24 +7,24 @@ from std/math import ceil_div
 
 type
     ProfileKind* = enum
-        UltraFast
-        VeryFast
-        Fast
-        Basic
-        Slow
-        VerySlow
+        pkUltraFast
+        pkVeryFast
+        pkFast
+        pkBasic
+        pkSlow
+        pkVerySlow
 
     TextureCompressionKind* = enum
-        NoneRGB
-        NoneRGBA
-        BC1
-        BC3
-        BC4
-        BC5
-        BC6H
-        BC7
-        ETC1
-        ASTC
+        cmpNoneRGB
+        cmpNoneRGBA
+        cmpBC1
+        cmpBC3
+        cmpBC4
+        cmpBC5
+        cmpBC6H
+        cmpBC7
+        cmpETC1
+        cmpASTC
 
 type
     RGBASurface = object
@@ -63,10 +63,10 @@ type
 
     CompressionProfile* = object
         case kind*: TextureCompressionKind
-        of BC6H: bc6h: BC6HEncSettings
-        of BC7 : bc7 : BC7EncSettings
-        of ETC1: etc1: ETCEncSettings
-        of ASTC: astc: ASTCEncSettings
+        of cmpBC6H: bc6h: BC6HEncSettings
+        of cmpBC7 : bc7 : BC7EncSettings
+        of cmpETC1: etc1: ETCEncSettings
+        of cmpASTC: astc: ASTCEncSettings
         else: discard
 
     CompressedTexture* = object
@@ -125,60 +125,60 @@ proc replicate_borders*(dst_slice, src_tex: ptr RGBASurface; x, y, bpp: cint) {.
 
 func bytes_per_block(kind: TextureCompressionKind): int =
     case kind
-    of BC1, BC4, ETC1: 8
-    of BC3, BC5, BC6H, BC7, ASTC: 16
-    of NoneRGB : 48
-    of NoneRGBA: 64
+    of cmpBC1, cmpBC4, cmpETC1: 8
+    of cmpBC3, cmpBC5, cmpBC6H, cmpBC7, cmpASTC: 16
+    of cmpNoneRGB : 48
+    of cmpNoneRGBA: 64
 
 func size*(kind: TextureCompressionKind; w, h: int): int =
     let block_count = (w div 4) * (h div 4)
     result = kind.bytes_per_block * block_count
 
-proc get_profile*(kind: TextureCompressionKind; mode = Basic; with_alpha = true; block_size = (4, 4)): CompressionProfile =
+proc get_profile*(kind: TextureCompressionKind; mode = pkBasic; with_alpha = true; block_size = (4, 4)): CompressionProfile =
     result = CompressionProfile(kind: kind)
     case kind
-    of BC6H:
-        if mode == UltraFast:
-            warning &"No mode '{mode}' available, using '{VeryFast}'"
+    of cmpBC6H:
+        if mode == pkUltraFast:
+            warning &"No mode '{mode}' available, using '{pkVeryFast}'"
         case mode
-        of UltraFast,
-           VeryFast: get_profile_bc6h_very_fast result.bc6h.addr
-        of Fast    : get_profile_bc6h_fast      result.bc6h.addr
-        of Basic   : get_profile_bc6h_basic     result.bc6h.addr
-        of Slow    : get_profile_bc6h_slow      result.bc6h.addr
-        of VerySlow: get_profile_bc6h_very_slow result.bc6h.addr
-    of BC7:
-        if mode == VerySlow:
-            warning &"No mode '{mode}' available, using '{Slow}'"
+        of pkUltraFast,
+           pkVeryFast: get_profile_bc6h_very_fast result.bc6h.addr
+        of pkFast    : get_profile_bc6h_fast      result.bc6h.addr
+        of pkBasic   : get_profile_bc6h_basic     result.bc6h.addr
+        of pkSlow    : get_profile_bc6h_slow      result.bc6h.addr
+        of pkVerySlow: get_profile_bc6h_very_slow result.bc6h.addr
+    of cmpBC7:
+        if mode == pkVerySlow:
+            warning &"No mode '{mode}' available, using '{pkSlow}'"
         if with_alpha:
             case mode
-            of UltraFast: get_profile_alpha_ultra_fast result.bc7.addr
-            of VeryFast : get_profile_alpha_very_fast  result.bc7.addr
-            of Fast     : get_profile_alpha_fast       result.bc7.addr
-            of Basic    : get_profile_alpha_basic      result.bc7.addr
-            of Slow,
-               VerySlow: get_profile_alpha_slow result.bc7.addr
+            of pkUltraFast: get_profile_alpha_ultra_fast result.bc7.addr
+            of pkVeryFast : get_profile_alpha_very_fast  result.bc7.addr
+            of pkFast     : get_profile_alpha_fast       result.bc7.addr
+            of pkBasic    : get_profile_alpha_basic      result.bc7.addr
+            of pkSlow,
+               pkVerySlow: get_profile_alpha_slow result.bc7.addr
         else:
             case mode
-            of UltraFast: get_profile_ultra_fast result.bc7.addr
-            of VeryFast : get_profile_very_fast  result.bc7.addr
-            of Fast     : get_profile_fast       result.bc7.addr
-            of Basic    : get_profile_basic      result.bc7.addr
-            of Slow,
-               VerySlow: get_profile_slow result.bc7.addr
-    of ETC1:
-        if mode != Slow:
-            warning &"The only mode available for ETC1 is '{Slow}' (got '{mode}')"
+            of pkUltraFast: get_profile_ultra_fast result.bc7.addr
+            of pkVeryFast : get_profile_very_fast  result.bc7.addr
+            of pkFast     : get_profile_fast       result.bc7.addr
+            of pkBasic    : get_profile_basic      result.bc7.addr
+            of pkSlow,
+               pkVerySlow: get_profile_slow result.bc7.addr
+    of cmpETC1:
+        if mode != pkSlow:
+            warning &"The only mode available for ETC1 is '{pkSlow}' (got '{mode}')"
         get_profile_etc_slow result.etc1.addr
-    of ASTC:
-        if mode != Fast or (with_alpha and mode != Fast):
+    of cmpASTC:
+        if mode != pkFast or (with_alpha and mode != pkFast):
             let alpha_msg = if with_alpha: "with alpha" else: "without alpha"
             warning &"No mode '{mode}' available {alpha_msg}"
         if with_alpha:
             case mode
-            of UltraFast, VeryFast, Fast:
+            of pkUltraFast, pkVeryFast, pkFast:
                 get_profile_astc_alpha_fast(result.astc.addr, cint block_size[0], cint block_size[1])
-            of Basic, Slow, VerySlow:
+            of pkBasic, pkSlow, pkVerySlow:
                 get_profile_astc_alpha_slow(result.astc.addr, cint block_size[0], cint block_size[1])
         else:
             get_profile_astc_fast(result.astc.addr, cint block_size[0], cint block_size[1])
@@ -188,7 +188,7 @@ proc get_profile*(kind: TextureCompressionKind; mode = Basic; with_alpha = true;
 proc alloc_img(w, h, bpp: int): RGBASurface =
     result.width  = uint32 w
     result.height = uint32 h
-    result.stride = uint32(bpp * w)
+    result.stride = uint32 (bpp * w)
     result.data   = cast[ptr byte](alloc(result.height * result.stride))
 
 proc compress*(profile: CompressionProfile; src: ptr byte; w, h, bpp: int): CompressedTexture =
@@ -198,7 +198,7 @@ proc compress*(profile: CompressionProfile; src: ptr byte; w, h, bpp: int): Comp
     let bh = BlockHeight * ceil_div(h, BlockHeight)
     let block_count = int (bw div BlockWidth) * (bw div BlockHeight)
 
-    let raw_img   = RGBASurface(data: src, width: uint32 w, height: uint32 h, stride: uint32(bpp * w))
+    # let raw_img   = RGBASurface(data: src, width: uint32 w, height: uint32 h, stride: uint32 (bpp * w))
     var edged_img = alloc_img(bw, bh, bpp) # TODO: fix the edging for non power-of-two
     copy_mem(edged_img.data, src, int(edged_img.stride * edged_img.height))
     # replicate_borders(edged_img.addr, raw_img.addr, cint bw, cint bh, 32)
@@ -206,14 +206,14 @@ proc compress*(profile: CompressionProfile; src: ptr byte; w, h, bpp: int): Comp
     result.size = (bytes_per_block profile.kind) * block_count
     result.data = cast[ptr byte](alloc result.size)
     case profile.kind
-    of BC1 : compress_blocks_bc1( edged_img.addr, result.data)
-    of BC3 : compress_blocks_bc3( edged_img.addr, result.data)
-    of BC4 : compress_blocks_bc4( edged_img.addr, result.data)
-    of BC5 : compress_blocks_bc5( edged_img.addr, result.data)
-    of BC6H: compress_blocks_bc6h(edged_img.addr, result.data, profile.bc6h.addr)
-    of BC7 : compress_blocks_bc7( edged_img.addr, result.data, profile.bc7.addr)
-    of ETC1: compress_blocks_etc1(edged_img.addr, result.data, profile.etc1.addr)
-    of ASTC: compress_blocks_astc(edged_img.addr, result.data, profile.astc.addr)
-    of NoneRGB, NoneRGBA:
+    of cmpBC1 : compress_blocks_bc1  edged_img.addr, result.data
+    of cmpBC3 : compress_blocks_bc3  edged_img.addr, result.data
+    of cmpBC4 : compress_blocks_bc4  edged_img.addr, result.data
+    of cmpBC5 : compress_blocks_bc5  edged_img.addr, result.data
+    of cmpBC6H: compress_blocks_bc6h edged_img.addr, result.data, profile.bc6h.addr
+    of cmpBC7 : compress_blocks_bc7  edged_img.addr, result.data, profile.bc7.addr
+    of cmpETC1: compress_blocks_etc1 edged_img.addr, result.data, profile.etc1.addr
+    of cmpASTC: compress_blocks_astc edged_img.addr, result.data, profile.astc.addr
+    of cmpNoneRGB, cmpNoneRGBA:
         assert false, &"Should not call compress with '{profile.kind}'"
 

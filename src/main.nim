@@ -4,7 +4,7 @@
 
 import
     std/[streams, parseopt, parsecfg, paths, tables, strutils],
-    common, assimp/assimp, ispctc, stbi, compress, nai, output, analyze, dds
+    common, assimp/assimp, compress, nai, util, output, analyze
 from std/os       import get_app_dir
 from std/files    import file_exists
 from std/sequtils import foldl, to_seq, map_it
@@ -265,4 +265,11 @@ when is_main_module:
         else:
             let scene = import_file($in_file, pfGenBoundingBoxes)
             dump scene, $in_file
+
+# Keep synced with the header file
+static:
+    assert (sizeof Header)         == 36
+    assert (sizeof MeshHeader)     == 12
+    assert (sizeof MaterialHeader) == 4
+    assert (sizeof TextureHeader)  == 8
 

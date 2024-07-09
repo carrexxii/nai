@@ -4,33 +4,24 @@
 
 import
     std/[streams, sequtils, strutils],
-    common, assimp/assimp, stbi, ispctc, dds, nai
+    common, assimp/assimp, stbi, ispctc, dds, nai, util
 
 # TODO: ensure flags don't overlap/have invalid pairs
 proc write_header*(header: var Header; scene: ptr AIScene; file: Stream) =
-    header.magic           = NAIMagic
-    header.version         = NAIVersion
-    header.mesh_count      = uint16 scene.mesh_count
-    header.material_count  = uint16 scene.material_count
-    header.texture_count   = uint16 scene.texture_count
-    header.animation_count = uint16 scene.animation_count
-    header.skeleton_count  = uint16 scene.skeleton_count
+    with header:
+        magic           = NAIMagic
+        version         = NAIVersion
+        mesh_count      = uint16 scene.mesh_count
+        material_count  = uint16 scene.material_count
+        texture_count   = uint16 scene.texture_count
+        animation_count = uint16 scene.animation_count
+        skeleton_count  = uint16 scene.skeleton_count
     file.write header
 
 proc write_meshes*(header: Header; scene: ptr AIScene; file: Stream) =
-    template write(kind: VertexKind; dst, src) =
-        when flags in vertex_flags:
-            dst = src
-
-    template iter(count: int; a, b, c: ptr UncheckedArray[untyped]): untyped =
-        iterator iter_impl(n: int; s1: typeof a; s2: typeof b; s3: typeof c): (typeof a[0], typeof b[0], typeof c[0]) =
-            for i in 0..<n:
-                yield (s1[i], s2[i], s3[i])
-
-        iter_impl(count, a, b, c)
-
     if scene.mesh_count != 1:
-        assert(false, "Need to implement multiple meshes")
+        assert false, "Need to implement multiple meshes"
+
     for mesh in to_oa(scene.meshes, scene.mesh_count):
         var index_count = 0
         for face in to_oa(mesh.faces, mesh.face_count):
@@ -75,7 +66,7 @@ proc write_meshes*(header: Header; scene: ptr AIScene; file: Stream) =
                 mesh.texture_coords.foldl(a + (if b == nil: 0 else: 1), 0) > 0
 
         let vert_kinds = header.vertex_kinds.filter_it: it != vtxNone
-        let interleave = lfVerticesInterleaved in header.layout_mask
+        let interleave = lfVerticesInterleaved in header.layout_mask # TODO: implement separated vertices
         var vert_mem  = cast[ptr UncheckedArray[uint8]](alloc vert_size * int mesh.vertex_count)
         var offset = 0
         for (i, kind) in enumerate vert_kinds:
@@ -185,7 +176,7 @@ proc write_materials*(header: Header; scene: ptr AIScene; file: Stream; tex_desc
                 # Compression
                 var final_tex : ptr UncheckedArray[byte]
                 var final_size: int
-                if tex_header.format notin [NoneRGB, NoneRGBA]:
+                if tex_header.format notin [cmpNoneRGB, cmpNoneRGBA]:
                     let profile = get_profile tex_header.format
                     let cmp_tex = profile.compress(cast[ptr byte](raw_tex.data), w, h, raw_tex.channels)
                     final_tex  = cast[ptr UncheckedArray[byte]](cmp_tex.data)

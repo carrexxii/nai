@@ -4,7 +4,7 @@
 
 import
     std/[streams, terminal, strutils, sequtils],
-    common, assimp/assimp, ispctc, nai
+    common, assimp/assimp, ispctc, nai, util
 from std/os import get_file_size
 
 const ShadeChars  = ["▓", "▒", "░"]

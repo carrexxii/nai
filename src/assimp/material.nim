@@ -277,13 +277,13 @@ proc get_value*(mtl: ptr AIMaterial; key: AIMatkey): AITextureValue =
     template get(T: typedesc) =
         when T is array[4, float32]:
             result = AITextureValue(kind: tvVector)
-            res = mtl.get_material_float_array($key, 0, 0, cast[ptr UncheckedArray[AIReal]](result.vec[0].addr), nil)
+            res = mtl.get_material_float_array(cstring $key, 0, 0, cast[ptr UncheckedArray[AIReal]](result.vec[0].addr), nil)
         elif T is float32:
             result = AITextureValue(kind: tvFloat)
-            res = mtl.get_material_float_array($key, 0, 0, cast[ptr UncheckedArray[AIReal]](result.flt.addr), nil)
+            res = mtl.get_material_float_array(cstring $key, 0, 0, cast[ptr UncheckedArray[AIReal]](result.flt.addr), nil)
         elif T is string:
             var buf: AIString
-            res = mtl.get_material_string($key, 0, 0, buf.addr)
+            res = mtl.get_material_string(cstring $key, 0, 0, buf.addr)
             result = AITextureValue(
                 kind: tvString,
                 str : $buf,

@@ -79,33 +79,33 @@ D3DMiscFlag.gen_bit_ops(
     d3RestrictedContent, d3RestrictSharedResource, d3RestrictSharedResourceDriver, d3Guarded,
     _, d3TilePool, d3Tiled, d3HWProtected,
 )
-const SharedDisplayable     = D3DMiscFlag (1 + int d3HWProtected)
-const SharedExclusiveWriter = D3DMiscFlag (2 + int d3HWProtected)
+const SharedDisplayable*     = D3DMiscFlag (1 + int d3HWProtected)
+const SharedExclusiveWriter* = D3DMiscFlag (2 + int d3HWProtected)
 
 type
     DXGIFormat {.size: sizeof(uint32).} = enum
-        Unknown       = 0
-        R8G8B8A8UNorm = 28
-        BC1UNorm      = 71
-        BC3UNorm      = 77
-        BC4UNorm      = 80
-        BC5UNorm      = 83
-        BC6HUF16      = 95
-        BC7UNorm      = 98
+        dxgiUnknown       = 0
+        dxgiR8G8B8A8UNorm = 28
+        dxgiBC1UNorm      = 71
+        dxgiBC3UNorm      = 77
+        dxgiBC4UNorm      = 80
+        dxgiBC5UNorm      = 83
+        dxgiBC6HUF16      = 95
+        dxgiBC7UNorm      = 98
 
     D3DResourceDimension {.size: sizeof(uint32).} = enum
-        Unknown
-        Buffer
-        Texture1D
-        Texture2D
-        Texture3D
+        rdUnknown
+        rdBuffer
+        rdTexture1D
+        rdTexture2D
+        rdTexture3D
 
     DDSAlphaMode {.size: sizeof(uint32).} = enum
-        Unknown
-        Straight
-        Premultiplied
-        Opaque
-        Custom
+        amUnknown
+        amStraight
+        amPremultiplied
+        amOpaque
+        amCustom
 
 type
     DDSPixelFormat = object
@@ -161,29 +161,29 @@ func pixel_format(flags: DDSPixelFormatFlag; fourcc, cbc, rm, gm, bm, am: uint32
     )
 
 const PixelFormats = to_table {
-    NoneRGB : pixel_format(pfRGB , ['\0', '\0', '\0', '\0'], 24, 0x0000_00FF, 0x0000_FF00, 0x00FF_0000, 0),
-    NoneRGBA: pixel_format(pfRGBA, ['\0', '\0', '\0', '\0'], 32, 0x0000_00FF, 0x0000_FF00, 0x00FF_0000, 0xFF00_0000'u32),
-    BC1 : pixel_format(pfFourCC, ['D', 'X', 'T', '1'], 0, 0, 0, 0, 0),
-    BC3 : pixel_format(pfFourCC, ['D', 'X', 'T', '4'], 0, 0, 0, 0, 0), # DXT5 without alpha
-    BC4 : pixel_format(pfFourCC, ['A', 'T', 'I', '1'], 0, 0, 0, 0, 0),
-    BC5 : pixel_format(pfFourCC, ['A', 'T', 'I', '2'], 0, 0, 0, 0, 0),
-    BC6H: pixel_format(pfFourCC, ['D', 'X', '1', '0'], 0, 0, 0, 0, 0),
-    BC7 : pixel_format(pfFourCC, ['D', 'X', '1', '0'], 0, 0, 0, 0, 0),
-    ETC1: pixel_format(pfFourCC, ['D', 'X', '1', '0'], 0, 0, 0, 0, 0),
-    ASTC: pixel_format(pfFourCC, ['D', 'X', '1', '0'], 0, 0, 0, 0, 0),
+    cmpNoneRGB : pixel_format(pfRGB , ['\0', '\0', '\0', '\0'], 24, 0x0000_00FF, 0x0000_FF00, 0x00FF_0000, 0),
+    cmpNoneRGBA: pixel_format(pfRGBA, ['\0', '\0', '\0', '\0'], 32, 0x0000_00FF, 0x0000_FF00, 0x00FF_0000, 0xFF00_0000'u32),
+    cmpBC1 : pixel_format(pfFourCC, ['D', 'X', 'T', '1'], 0, 0, 0, 0, 0),
+    cmpBC3 : pixel_format(pfFourCC, ['D', 'X', 'T', '4'], 0, 0, 0, 0, 0), # DXT5 without alpha
+    cmpBC4 : pixel_format(pfFourCC, ['A', 'T', 'I', '1'], 0, 0, 0, 0, 0),
+    cmpBC5 : pixel_format(pfFourCC, ['A', 'T', 'I', '2'], 0, 0, 0, 0, 0),
+    cmpBC6H: pixel_format(pfFourCC, ['D', 'X', '1', '0'], 0, 0, 0, 0, 0),
+    cmpBC7 : pixel_format(pfFourCC, ['D', 'X', '1', '0'], 0, 0, 0, 0, 0),
+    cmpETC1: pixel_format(pfFourCC, ['D', 'X', '1', '0'], 0, 0, 0, 0, 0),
+    cmpASTC: pixel_format(pfFourCC, ['D', 'X', '1', '0'], 0, 0, 0, 0, 0),
 }
 
 func compression_to_format(kind: TextureCompressionKind): DXGIFormat =
     case kind
-    of NoneRGB, NoneRGBA: R8G8B8A8UNorm
-    of BC1 : BC1UNorm
-    of BC3 : BC3UNorm
-    of BC4 : BC4UNorm
-    of BC5 : BC5UNorm
-    of BC6H: BC6HUF16
-    of BC7 : BC7UNorm
-    of ETC1: Unknown
-    of ASTC: Unknown
+    of cmpNoneRGB, cmpNoneRGBA: dxgiR8G8B8A8UNorm
+    of cmpBC1 : dxgiBC1UNorm
+    of cmpBC3 : dxgiBC3UNorm
+    of cmpBC4 : dxgiBC4UNorm
+    of cmpBC5 : dxgiBC5UNorm
+    of cmpBC6H: dxgiBC6HUF16
+    of cmpBC7 : dxgiBC7UNorm
+    of cmpETC1: dxgiUnknown
+    of cmpASTC: dxgiUnknown
 
 # block_size = 8 for DXT1 or 16 for DXT2-5
 func calc_mip_size(w, h, block_size: uint32): uint32 =
@@ -192,10 +192,10 @@ func calc_mip_size(w, h, block_size: uint32): uint32 =
 
 func get_bpp(kind: TextureCompressionKind): int =
     case kind
-    of BC1, BC4, ETC1: 4
-    of BC3, BC5, BC6H, BC7, ASTC: 8
-    of NoneRGB : 24
-    of NoneRGBA: 32
+    of cmpBC1, cmpBC4, cmpETC1: 4
+    of cmpBC3, cmpBC5, cmpBC6H, cmpBC7, cmpASTC: 8
+    of cmpNoneRGB : 24
+    of cmpNoneRGBA: 32
 
 proc encode_dds*(kind: TextureCompressionKind; data: openArray[byte]; w, h, mip_count: int): DDSFile =
     let bpp = get_bpp kind
@@ -203,7 +203,7 @@ proc encode_dds*(kind: TextureCompressionKind; data: openArray[byte]; w, h, mip_
 
     var pitch: int
     var flags = ddsCaps or ddsHeight or ddsWidth or ddsPixelFormat
-    if kind == NoneRGB or kind == NoneRGBA:
+    if kind == cmpNoneRGB or kind == cmpNoneRGBA:
         flags = flags or ddsPitch
         pitch = (w * bpp) div 8
     else:
@@ -227,7 +227,7 @@ proc encode_dds*(kind: TextureCompressionKind; data: openArray[byte]; w, h, mip_
         ),
         dxt10_header: DDSHeaderDXT10(
             dxgi_format       : compression_to_format kind,
-            resource_dimension: Texture2D,
+            resource_dimension: rdTexture2D,
             array_size        : 1,
         ),
     )

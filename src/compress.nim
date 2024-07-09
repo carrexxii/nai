@@ -62,7 +62,4 @@ proc compress*(kind: CompressionKind; level: CompressionLevel; data: openArray[b
         if res != zlOk:
             error &"Error compression data ({data}) using ZLib: '{res}'"
             quit 1
-    else:
-        error &"Compression not implemented for {kind}"
-        quit 1
 
