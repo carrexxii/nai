@@ -9,149 +9,149 @@ const AIMaxTextureHintLen* = 9
 
 type
     AITextureKind* {.size: sizeof(cint).} = enum
-        None
-        Diffuse
-        Specular
-        Ambient
-        Emissive
-        Height
-        Normals
-        Shininess
-        Opacity
-        Displacement
-        Lightmap
-        Reflection
-        BaseColour
-        NormalCamera
-        EmissionColour
-        Metalness
-        DiffuseRoughness
-        AmbientOcclusion
-        Unknown
-        Sheen
-        Clearcoat
-        Transmission
+        texNone
+        texDiffuse
+        texSpecular
+        texAmbient
+        texEmissive
+        texHeight
+        texNormals
+        texShininess
+        texOpacity
+        texDisplacement
+        texLightmap
+        texReflection
+        texBaseColour
+        texNormalCamera
+        texEmissionColour
+        texMetalness
+        texDiffuseRoughness
+        texAmbientOcclusion
+        texUnknown
+        texSheen
+        texClearcoat
+        texTransmission
 
     AITextureOp* {.size: sizeof(cint).} = enum
-        Multiply
-        Add
-        Subtract
-        Divide
-        SmoothAdd
-        SignedAdd
+        opMultiply
+        opAdd
+        opSubtract
+        opDivide
+        opSmoothAdd
+        opSignedAdd
 
     AITextureMapMode* {.size: sizeof(cint).} = enum
-        Wrap
-        Clamp
-        Mirror
-        Decal
+        texWrap
+        texClamp
+        texMirror
+        texDecal
 
     AITextureMapping* {.size: sizeof(cint).} = enum
-        UV
-        Sphere
-        Cylinder
-        Box
-        Plane
-        Other
+        mapUV
+        mapSphere
+        mapCylinder
+        mapBox
+        mapPlane
+        mapOther
 
     AIShadingMode* {.size: sizeof(cint).} = enum
-        Flat
-        Gouraud
-        Phong
-        Blinn
-        Toon
-        OrenNayar
-        Minnaert
-        CookTorrance
-        NoShading
-        Fresnel
-        PBRBRDF
+        smFlat
+        smGouraud
+        smPhong
+        smBlinn
+        smToon
+        smOrenNayar
+        smMinnaert
+        smCookTorrance
+        smNoShading
+        smFresnel
+        smPBRBRDF
 
     AIBlendMode* {.size: sizeof(cint).} = enum
-        Default
-        Additive
+        bmDefault
+        bmAdditive
 
     AIPropertyKindInfo* {.size: sizeof(cint).} = enum
-        Float
-        Double
-        String
-        Integer
-        Buffer
+        pkFloat
+        pkDouble
+        pkString
+        pkInteger
+        pkBuffer
 
     AIMatkey* {.size: sizeof(cstring).} = enum
-        Name                      = "?mat.name"
-        TwoSided                  = "$mat.twosided"
-        ShadingModel              = "$mat.shadingm"
-        EnableWireframe           = "$mat.wireframe"
-        BlendFunc                 = "$mat.blend"
-        Opacity                   = "$mat.opacity"
-        TransparencyFactor        = "$mat.transparencyfactor"
-        BumpScaling               = "$mat.bumpscaling"
-        Shininess                 = "$mat.shininess"
-        Reflectivity              = "$mat.reflectivity"
-        ShininessStrength         = "$mat.shinpercent"
-        RefractiveIndex           = "$mat.refracti"
-        ColourDiffuse             = "$clr.diffuse"
-        ColourAmbient             = "$clr.ambient"
-        ColourSpecular            = "$clr.specular"
-        ColourEmissive            = "$clr.emissive"
-        ColourTransparent         = "$clr.transparent"
-        ColourReflective          = "$clr.reflective"
-        GlobalBackgroundImage     = "?bg.global"
-        GlobalShaderLang          = "?sh.lang"
-        ShaderVertex              = "?sh.vs"
-        ShaderFragment            = "?sh.fs"
-        ShaderGeo                 = "?sh.gs"
-        ShaderTesselation         = "?sh.ts"
-        ShaderPrimitive           = "?sh.ps"
-        ShaderCompute             = "?sh.cs"
-        UseColourMap              = "$mat.useColorMap"
-        BaseColour                = "$clr.base"
-        UseMetallicMap            = "$mat.useMetallicMap"
-        MetallicFactor            = "$mat.metallicFactor"
-        UseRoughnessMap           = "$mat.useRoughnessMap"
-        RoughnessFactor           = "$mat.roughnessFactor"
-        AnisotropyFactor          = "$mat.anisotropyFactor"
-        SpecularFactor            = "$mat.specularFactor"
-        GlossinessFactor          = "$mat.glossinessFactor"
-        SheenColourFactor         = "$clr.sheen.factor"
-        SheenRoughnessFactor      = "$mat.sheen.roughnessFactor"
-        ClearcoatFactor           = "$mat.clearcoat.factor"
-        ClearcoatRoughnessFactor  = "$mat.clearcoat.roughnessFactor"
-        TransmissionFactor        = "$mat.transmission.factor"
-        VolumeThicknessFactor     = "$mat.volume.thicknessFactor"
-        VolumeAttenuationDistance = "$mat.volume.attenuationDistance"
-        VolumeAttenuationColour   = "$mat.volume.attenuationColor"
-        UseEmissiveMap            = "$mat.useEmissiveMap"
-        EmissiveIntensity         = "$mat.emissiveIntensity"
-        UseAOMap                  = "$mat.useAOMap"
-        TextureBase               = "$tex.file"
-        UVWSrcBase                = "$tex.uvwsrc"
-        TexOpBase                 = "$tex.op"
-        MappingBase               = "$tex.mapping"
-        TexBlendBase              = "$tex.blend"
-        MappingModeUBase          = "$tex.mapmodeu"
-        MappingModeVBase          = "$tex.mapmodev"
-        TexMapAxisBase            = "$tex.mapaxis"
-        UVTransformBase           = "$tex.uvtrafo"
-        TexFlagsBase              = "$tex.flags"
+        mkName                      = "?mat.name"
+        mkTwoSided                  = "$mat.twosided"
+        mkShadingModel              = "$mat.shadingm"
+        mkEnableWireframe           = "$mat.wireframe"
+        mkBlendFunc                 = "$mat.blend"
+        mkOpacity                   = "$mat.opacity"
+        mkTransparencyFactor        = "$mat.transparencyfactor"
+        mkBumpScaling               = "$mat.bumpscaling"
+        mkShininess                 = "$mat.shininess"
+        mkReflectivity              = "$mat.reflectivity"
+        mkShininessStrength         = "$mat.shinpercent"
+        mkRefractiveIndex           = "$mat.refracti"
+        mkColourDiffuse             = "$clr.diffuse"
+        mkColourAmbient             = "$clr.ambient"
+        mkColourSpecular            = "$clr.specular"
+        mkColourEmissive            = "$clr.emissive"
+        mkColourTransparent         = "$clr.transparent"
+        mkColourReflective          = "$clr.reflective"
+        mkGlobalBackgroundImage     = "?bg.global"
+        mkGlobalShaderLang          = "?sh.lang"
+        mkShaderVertex              = "?sh.vs"
+        mkShaderFragment            = "?sh.fs"
+        mkShaderGeo                 = "?sh.gs"
+        mkShaderTesselation         = "?sh.ts"
+        mkShaderPrimitive           = "?sh.ps"
+        mkShaderCompute             = "?sh.cs"
+        mkUseColourMap              = "$mat.useColorMap"
+        mkBaseColour                = "$clr.base"
+        mkUseMetallicMap            = "$mat.useMetallicMap"
+        mkMetallicFactor            = "$mat.metallicFactor"
+        mkUseRoughnessMap           = "$mat.useRoughnessMap"
+        mkRoughnessFactor           = "$mat.roughnessFactor"
+        mkAnisotropyFactor          = "$mat.anisotropyFactor"
+        mkSpecularFactor            = "$mat.specularFactor"
+        mkGlossinessFactor          = "$mat.glossinessFactor"
+        mkSheenColourFactor         = "$clr.sheen.factor"
+        mkSheenRoughnessFactor      = "$mat.sheen.roughnessFactor"
+        mkClearcoatFactor           = "$mat.clearcoat.factor"
+        mkClearcoatRoughnessFactor  = "$mat.clearcoat.roughnessFactor"
+        mkTransmissionFactor        = "$mat.transmission.factor"
+        mkVolumeThicknessFactor     = "$mat.volume.thicknessFactor"
+        mkVolumeAttenuationDistance = "$mat.volume.attenuationDistance"
+        mkVolumeAttenuationColour   = "$mat.volume.attenuationColor"
+        mkUseEmissiveMap            = "$mat.useEmissiveMap"
+        mkEmissiveIntensity         = "$mat.emissiveIntensity"
+        mkUseAOMap                  = "$mat.useAOMap"
+        mkTextureBase               = "$tex.file"
+        mkUVWSrcBase                = "$tex.uvwsrc"
+        mkTexOpBase                 = "$tex.op"
+        mkMappingBase               = "$tex.mapping"
+        mkTexBlendBase              = "$tex.blend"
+        mkMappingModeUBase          = "$tex.mapmodeu"
+        mkMappingModeVBase          = "$tex.mapmodev"
+        mkTexMapAxisBase            = "$tex.mapaxis"
+        mkUVTransformBase           = "$tex.uvtrafo"
+        mkTexFlagsBase              = "$tex.flags"
 
-    #     BaseColourTexture         = (TextureKind.BaseColour      , 0)
-    #     MetallicTexture           = (TextureKind.Metalness       , 0)
-    #     RoughnessTexture          = (TextureKind.DiffuseRoughness, 0)
-    #     SheenColourTexture        = (TextureKind.Sheen           , 0)
-    #     SheenRoughnessTexture     = (TextureKind.Sheen           , 1)
-    #     ClearcoatTexture          = (TextureKind.Clearcoat       , 0)
-    #     ClearcoatRoughnessTexture = (TextureKind.Clearcoat       , 1)
-    #     ClearcoatNormalTexture    = (TextureKind.Clearcoat       , 2)
-    #     TransmissionTexture       = (TextureKind.Transmission    , 0)
-    #     VolumeThicknessTexture    = (TextureKind.Transmission    , 1)
+    #     mkBaseColourTexture         = (TextureKind.texBaseColour      , 0)
+    #     mkMetallicTexture           = (TextureKind.texMetalness       , 0)
+    #     mkRoughnessTexture          = (TextureKind.texDiffuseRoughness, 0)
+    #     mkSheenColourTexture        = (TextureKind.texSheen           , 0)
+    #     mkSheenRoughnessTexture     = (TextureKind.texSheen           , 1)
+    #     mkClearcoatTexture          = (TextureKind.texClearcoat       , 0)
+    #     mkClearcoatRoughnessTexture = (TextureKind.texClearcoat       , 1)
+    #     mkClearcoatNormalTexture    = (TextureKind.texClearcoat       , 2)
+    #     mkTransmissionTexture       = (TextureKind.texTransmission    , 0)
+    #     mkVolumeThicknessTexture    = (TextureKind.texTransmission    , 1)
 
 type AITextureFlag* = distinct uint32
 AITextureFlag.gen_bit_ops(
-    Invert,
-    UseAlpha,
-    IgnoreAlpha,
+    texInvert,
+    texUseAlpha,
+    texIgnoreAlpha,
 )
 
 type
@@ -194,21 +194,21 @@ type
         flags*       : AITextureFlag
 
     AITextureValueKind* = enum
-        Boolean
-        Integer
-        Float
-        String
-        Vector
+        tvBoolean
+        tvInteger
+        tvFloat
+        tvString
+        tvVector
     AITextureValue* = object
         case kind*: AITextureValueKind
-        of Boolean: bln*: bool
-        of Integer: num*: int
-        of Float  : flt*: float32
-        of String : str*: string
-        of Vector : vec*: array[4, float32]
+        of tvBoolean: bln*: bool
+        of tvInteger: num*: int
+        of tvFloat  : flt*: float32
+        of tvString : str*: string
+        of tvVector : vec*: array[4, float32]
 
 const
-    Unlit*               = NoShading
+    Unlit*               = smNoShading
     DefaultMaterialName* = "DefaultMaterial"
     MaxTextureKinds*     = (int high AITextureKind) + 1
 
@@ -216,7 +216,7 @@ func `$`(prop: AIMaterialProperty): string =
     let key = &"\"{prop.key}\""
     result = &"Material property ({key}) of kind {prop.kind}: "
     result &= &"index {prop.index}; data_length {prop.data_length}"
-    if prop.tex_kind != None:
+    if prop.tex_kind != texNone:
         result &= &" ({to_lower_ascii $prop.tex_kind} texture)"
 
 #[ -------------------------------------------------------------------- ]#
@@ -256,7 +256,7 @@ proc texture*(mtl: ptr AIMaterial; kind: AITextureKind; index = 0): Option[AITex
         uv_index: cuint
     if mtl.get_material_texture(kind, cuint index, path.addr, data.mapping.addr,
                                 uv_index.addr, data.blend_factor.addr, data.texture_op.addr,
-                                data.map_mode.addr, data.flags.addr) != Success:
+                                data.map_mode.addr, data.flags.addr) != aiSuccess:
         none AITextureData
     else:
         data.kind     = kind
@@ -276,42 +276,42 @@ proc get_value*(mtl: ptr AIMaterial; key: AIMatkey): AITextureValue =
     var res: AIReturn
     template get(T: typedesc) =
         when T is array[4, float32]:
-            result = AITextureValue(kind: Vector)
+            result = AITextureValue(kind: tvVector)
             res = mtl.get_material_float_array($key, 0, 0, cast[ptr UncheckedArray[AIReal]](result.vec[0].addr), nil)
         elif T is float32:
-            result = AITextureValue(kind: Float)
+            result = AITextureValue(kind: tvFloat)
             res = mtl.get_material_float_array($key, 0, 0, cast[ptr UncheckedArray[AIReal]](result.flt.addr), nil)
         elif T is string:
             var buf: AIString
             res = mtl.get_material_string($key, 0, 0, buf.addr)
             result = AITextureValue(
-                kind: String,
+                kind: tvString,
                 str : $buf,
             )
 
     case key
-    of Name: get string
-    of TwoSided: get bool
-    of BaseColour               , ColourDiffuse     , ColourAmbient,
-       ColourSpecular           , ColourEmissive    , ColourTransparent,
-       ColourReflective         , TransmissionFactor, VolumeThicknessFactor,
-       VolumeAttenuationDistance, EmissiveIntensity , VolumeAttenuationColour:
+    of mkName: get string
+    of mkTwoSided: get bool
+    of mkBaseColour               , mkColourDiffuse     , mkColourAmbient,
+       mkColourSpecular           , mkColourEmissive    , mkColourTransparent,
+       mkColourReflective         , mkTransmissionFactor, mkVolumeThicknessFactor,
+       mkVolumeAttenuationDistance, mkEmissiveIntensity , mkVolumeAttenuationColour:
        get array[4, float32]
-    of MetallicFactor      , RoughnessFactor , SpecularFactor,
-       GlossinessFactor    , AnisotropyFactor, SheenColourFactor,
-       SheenRoughnessFactor, ClearcoatFactor , ClearcoatRoughnessFactor,
-       Opacity             , BumpScaling     , Shininess,
-       Reflectivity        , RefractiveIndex:
+    of mkMetallicFactor      , mkRoughnessFactor , mkSpecularFactor,
+       mkGlossinessFactor    , mkAnisotropyFactor, mkSheenColourFactor,
+       mkSheenRoughnessFactor, mkClearcoatFactor , mkClearcoatRoughnessFactor,
+       mkOpacity             , mkBumpScaling     , mkShininess,
+       mkReflectivity        , mkRefractiveIndex:
        get float32
     else:
         assert false, &"'{key}' has not been implemented"
 
-    if res != Success:
+    if res != aiSuccess:
         echo &"Failed to get material data ({key}) for {mtl[]}"
 
 proc `$`*(mtl_in: AIMaterial | ptr AIMaterial): string =
     let mtl = when mtl_in is AIMaterial: mtl_in.addr else: mtl_in
-    result = &"Material '{(mtl.get_value Name).str}'\n"
+    result = &"Material '{(mtl.get_value mkName).str}'\n"
     for kind in AITextureKind:
         let count = mtl.texture_count kind
         for i in 0..<count:

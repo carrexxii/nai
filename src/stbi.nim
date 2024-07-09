@@ -11,11 +11,11 @@ const
     STBImageWrite = "../lib/stb_image_write.h"
 
 type STBIImageFormat* = enum
-    PNG
-    BMP
-    TGA
-    JPG
-    HDR
+    stbPNG
+    stbBMP
+    stbTGA
+    stbJPG
+    stbHDR
 
 type STBIWriteFunc = proc(ctx, data: pointer; size: cint) {.cdecl.}
 
@@ -75,7 +75,7 @@ proc writer(ctx, data: pointer; size: cint) {.cdecl.} =
 proc write_image*(file: Stream; format: STBIImageFormat; w, h, comp: int; data: pointer) =
     let fn: STBIWriteFunc = writer
     let res = case format
-    of PNG: fn.write_png file.addr, cint w, cint h, cint comp, data, 0
+    of stbPNG: fn.write_png file.addr, cint w, cint h, cint comp, data, 0
     else: 0
 
     if res == 0: # wtf?

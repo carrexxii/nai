@@ -12,112 +12,112 @@ const NAIVersion*: array[2, byte] = [0, 0]
 
 type
     LayoutFlag* = enum
-        VerticesInterleaved = 1 shl 0
-        VerticesSeparated   = 1 shl 1
-        TexturesInternal    = 1 shl 2
-        TexturesExternal    = 1 shl 3
+        lfVerticesInterleaved
+        lfVerticesSeparated
+        lfTexturesInternal
+        lfTexturesExternal
     LayoutMask* {.size: sizeof(uint16).} = set[LayoutFlag]
 
     CompressionKind* {.size: sizeof(uint16).} = enum
-        None
-        ZLib
+        cmpNone
+        cmpZLib
 
     ContainerKind* = enum
-        None
-        DDS
-        PNG
+        cntNone
+        cntDDS
+        cntPNG
 
     VertexKind* {.size: sizeof(uint8).} = enum
-        None
-        Position
-        Normal
-        Tangent
-        Bitangent
-        ColourRGBA
-        ColourRGB
-        UV
-        UV3
+        vtxNone
+        vtxPosition
+        vtxNormal
+        vtxTangent
+        vtxBitangent
+        vtxColourRGBA
+        vtxColourRGB
+        vtxUV
+        vtxUV3
 
     MaterialValue* {.size: sizeof(uint8).} = enum
-        None
-        Name
-        TwoSided
-        BaseColour
-        MetallicFactor
-        RoughnessFactor
-        SpecularFactor
-        GlossinessFactor
-        AnisotropyFactor
-        SheenColourFactor
-        SheenRoughnessFactor
-        ClearcoatFactor
-        ClearcoatRoughnessFactor
-        Opacity
-        BumpScaling
-        Shininess
-        Reflectivity
-        RefractiveIndex
-        ColourDiffuse
-        ColourAmbient
-        ColourSpecular
-        ColourEmissive
-        ColourTransparent
-        ColourReflective
-        TransmissionFactor
-        VolumeThicknessFactor
-        VolumeAttenuationDistance
-        VolumeAttenuationColour
-        EmissiveIntensity
+        mtlNone
+        mtlName
+        mtlTwoSided
+        mtlBaseColour
+        mtlMetallicFactor
+        mtlRoughnessFactor
+        mtlSpecularFactor
+        mtlGlossinessFactor
+        mtlAnisotropyFactor
+        mtlSheenColourFactor
+        mtlSheenRoughnessFactor
+        mtlClearcoatFactor
+        mtlClearcoatRoughnessFactor
+        mtlOpacity
+        mtlBumpScaling
+        mtlShininess
+        mtlReflectivity
+        mtlRefractiveIndex
+        mtlColourDiffuse
+        mtlColourAmbient
+        mtlColourSpecular
+        mtlColourEmissive
+        mtlColourTransparent
+        mtlColourReflective
+        mtlTransmissionFactor
+        mtlVolumeThicknessFactor
+        mtlVolumeAttenuationDistance
+        mtlVolumeAttenuationColour
+        mtlEmissiveIntensity
 
     TextureKind* {.size: sizeof(uint16).} = enum
-        None
-        Diffuse
-        Specular
-        Ambient
-        Emissive
-        Height
-        Normals
-        Shininess
-        Opacity
-        Displacement
-        Lightmap
-        Reflection
-        BaseColour
-        NormalCamera
-        EmissionColour
-        Metalness
-        DiffuseRoughness
-        AmbientOcclusion
-        Unknown
-        Sheen
-        Clearcoat
-        Transmission
+        texNone
+        texDiffuse
+        texSpecular
+        texAmbient
+        texEmissive
+        texHeight
+        texNormals
+        texShininess
+        texOpacity
+        texDisplacement
+        texLightmap
+        texReflection
+        texBaseColour
+        texNormalCamera
+        texEmissionColour
+        texMetalness
+        texDiffuseRoughness
+        texAmbientOcclusion
+        texUnknown
+        texSheen
+        texClearcoat
+        texTransmission
 
     TextureFormat* {.size: sizeof(uint16).} = enum
-        None
+        tfNone
 
-        R
-        RG
-        RGB
-        RGBA
+        tfR
+        tfRG
+        tfRGB
+        tfRGBA
 
-        BC1 = 100
-        BC3
-        BC4
-        BC5
-        BC6H
-        BC7
+        tfBC1 = 100
+        tfBC3
+        tfBC4
+        tfBC5
+        tfBC6H
+        tfBC7
 
-        ETC1 = 200
+        tfETC1 = 200
 
-        ASTC4x4 = 300
+        tfASTC4x4 = 300
 
     IndexSize* {.size: sizeof(uint16).} = enum
-        None
-        Index8
-        Index16
-        Index32
-        Index64
+        iszNone
+        isz8Bit
+        isz16Bit
+        isz32Bit
+        isz64Bit
 
 type
     Header* = object
@@ -162,66 +162,66 @@ type
 
 converter index_size_to_int*(kind: IndexSize): int =
     case kind
-    of None   : 0
-    of Index8 : 1
-    of Index16: 2
-    of Index32: 4
-    of Index64: 8
+    of iszNone   : 0
+    of isz8Bit : 1
+    of isz16Bit: 2
+    of isz32Bit: 4
+    of isz64Bit: 8
 
 converter tex_fmt_to_cmp_kind*(kind: TextureFormat): TextureCompressionKind =
     case kind
-    of RGB    : NoneRGB
-    of RGBA   : NoneRGBA
-    of BC1    : BC1
-    of BC3    : BC3
-    of BC4    : BC4
-    of BC5    : BC5
-    of BC6H   : BC6H
-    of BC7    : BC7
-    of ETC1   : ETC1
-    of ASTC4x4: ASTC
+    of tfRGB    : NoneRGB
+    of tfRGBA   : NoneRGBA
+    of tfBC1    : BC1
+    of tfBC3    : BC3
+    of tfBC4    : BC4
+    of tfBC5    : BC5
+    of tfBC6H   : BC6H
+    of tfBC7    : BC7
+    of tfETC1   : ETC1
+    of tfASTC4x4: ASTC
     else:
         error &"Cannot convert '{kind}' to `TextureCompressionKind`"
         quit 1
 
 converter mtl_value_to_matkey*(val: MaterialValue): AIMatkey =
     case val
-    of Name                     : AIMatkey.Name
-    of TwoSided                 : AIMatkey.TwoSided
-    of BaseColour               : AIMatkey.BaseColour
-    of MetallicFactor           : AIMatkey.MetallicFactor
-    of RoughnessFactor          : AIMatkey.RoughnessFactor
-    of SpecularFactor           : AIMatkey.SpecularFactor
-    of GlossinessFactor         : AIMatkey.GlossinessFactor
-    of AnisotropyFactor         : AIMatkey.AnisotropyFactor
-    of SheenColourFactor        : AIMatkey.SheenColourFactor
-    of SheenRoughnessFactor     : AIMatkey.SheenRoughnessFactor
-    of ClearcoatFactor          : AIMatkey.ClearcoatFactor
-    of ClearcoatRoughnessFactor : AIMatkey.ClearcoatRoughnessFactor
-    of Opacity                  : AIMatkey.Opacity
-    of BumpScaling              : AIMatkey.BumpScaling
-    of Shininess                : AIMatkey.Shininess
-    of Reflectivity             : AIMatkey.Reflectivity
-    of RefractiveIndex          : AIMatkey.RefractiveIndex
-    of ColourDiffuse            : AIMatkey.ColourDiffuse
-    of ColourAmbient            : AIMatkey.ColourAmbient
-    of ColourSpecular           : AIMatkey.ColourSpecular
-    of ColourEmissive           : AIMatkey.ColourEmissive
-    of ColourTransparent        : AIMatkey.ColourTransparent
-    of ColourReflective         : AIMatkey.ColourReflective
-    of TransmissionFactor       : AIMatkey.TransmissionFactor
-    of VolumeThicknessFactor    : AIMatkey.VolumeThicknessFactor
-    of VolumeAttenuationDistance: AIMatkey.VolumeAttenuationDistance
-    of VolumeAttenuationColour  : AIMatkey.VolumeAttenuationColour
-    of EmissiveIntensity        : AIMatkey.EmissiveIntensity
-    of None:
-        error &"Should not be converting '{val}' to AIMatkey"
+    of mtlName                     : mkName
+    of mtlTwoSided                 : mkTwoSided
+    of mtlBaseColour               : mkBaseColour
+    of mtlMetallicFactor           : mkMetallicFactor
+    of mtlRoughnessFactor          : mkRoughnessFactor
+    of mtlSpecularFactor           : mkSpecularFactor
+    of mtlGlossinessFactor         : mkGlossinessFactor
+    of mtlAnisotropyFactor         : mkAnisotropyFactor
+    of mtlSheenColourFactor        : mkSheenColourFactor
+    of mtlSheenRoughnessFactor     : mkSheenRoughnessFactor
+    of mtlClearcoatFactor          : mkClearcoatFactor
+    of mtlClearcoatRoughnessFactor : mkClearcoatRoughnessFactor
+    of mtlOpacity                  : mkOpacity
+    of mtlBumpScaling              : mkBumpScaling
+    of mtlShininess                : mkShininess
+    of mtlReflectivity             : mkReflectivity
+    of mtlRefractiveIndex          : mkRefractiveIndex
+    of mtlColourDiffuse            : mkColourDiffuse
+    of mtlColourAmbient            : mkColourAmbient
+    of mtlColourSpecular           : mkColourSpecular
+    of mtlColourEmissive           : mkColourEmissive
+    of mtlColourTransparent        : mkColourTransparent
+    of mtlColourReflective         : mkColourReflective
+    of mtlTransmissionFactor       : mkTransmissionFactor
+    of mtlVolumeThicknessFactor    : mkVolumeThicknessFactor
+    of mtlVolumeAttenuationDistance: mkVolumeAttenuationDistance
+    of mtlVolumeAttenuationColour  : mkVolumeAttenuationColour
+    of mtlEmissiveIntensity        : mkEmissiveIntensity
+    of mtlNone:
+        error &"Cannot convert '{val}' to AIMatkey"
         quit 1
 
 proc `$`*(header: Header): string =
     let valid_msg = if header.magic == NAIMagic: "valid" else: "invalid"
-    let vert_kinds = header.vertex_kinds.filter_it   : it != None
-    let mtl_values = header.material_values.filter_it: it != None
+    let vert_kinds = header.vertex_kinds.filter_it   : it != vtxNone
+    let mtl_values = header.material_values.filter_it: it != mtlNone
     &"Nai file header:\n"                                               &
     &"    Magic number    -> {header.magic} ({valid_msg})\n"            &
     &"    Version         -> {header.version[0]}.{header.version[1]}\n" &
@@ -236,44 +236,44 @@ proc `$`*(header: Header): string =
 
 func size*(kind: VertexKind): int =
     case kind
-    of None: 0
-    of Position, Normal,
-       Tangent , Bitangent,
-       UV3       : 3 * (sizeof float32)
-    of ColourRGBA: 4 * (sizeof uint8)
-    of ColourRGB : 3 * (sizeof uint8)
-    of UV        : 2 * (sizeof float32)
+    of vtxNone: 0
+    of vtxPosition, vtxNormal,
+       vtxTangent , vtxBitangent,
+       vtxUV3       : 3 * (sizeof float32)
+    of vtxColourRGBA: 4 * (sizeof uint8)
+    of vtxColourRGB : 3 * (sizeof uint8)
+    of vtxUV        : 2 * (sizeof float32)
 
 func bpp*(kind: TextureFormat): int =
     case kind
-    of None: 0
-    of RG  : 16
-    of RGB : 24
-    of RGBA: 32
-    of BC1, BC4: 4
-    of R, BC3, BC5, BC6H, BC7: 8
-    of ETC1   : 0 # TODO
-    of ASTC4x4: 0 # TODO
+    of tfNone: 0
+    of tfRG  : 16
+    of tfRGB : 24
+    of tfRGBA: 32
+    of tfBC1, tfBC4: 4
+    of tfR, tfBC3, tfBC5, tfBC6H, tfBC7: 8
+    of tfETC1   : 0 # TODO
+    of tfASTC4x4: 0 # TODO
 
 func size*(kind: MaterialValue): int =
     case kind
-    of BaseColour       , ColourDiffuse , VolumeAttenuationColour,
-       ColourAmbient    , ColourSpecular, ColourEmissive,
-       ColourTransparent, ColourReflective: 16
-    of TwoSided: 1
+    of mtlBaseColour       , mtlColourDiffuse , mtlVolumeAttenuationColour,
+       mtlColourAmbient    , mtlColourSpecular, mtlColourEmissive,
+       mtlColourTransparent, mtlColourReflective: 16
+    of mtlTwoSided: 1
     else: 4
 
 func abbrev*(kind: VertexKind): string =
     case kind
-    of None      : ""
-    of Position  : "xyz"
-    of Normal    : "nnn"
-    of Tangent   : "ttt"
-    of Bitangent : "bbb"
-    of ColourRGBA: "rgb"
-    of ColourRGB : "rgba"
-    of UV        : "uv"
-    of UV3       : "uvt"
+    of vtxNone      : ""
+    of vtxPosition  : "xyz"
+    of vtxNormal    : "nnn"
+    of vtxTangent   : "ttt"
+    of vtxBitangent : "bbb"
+    of vtxColourRGBA: "rgb"
+    of vtxColourRGB : "rgba"
+    of vtxUV        : "uv"
+    of vtxUV3       : "uvt"
 
 # Keep synced with the header file
 static:

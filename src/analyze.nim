@@ -34,10 +34,10 @@ func layout_to_string(layout: LayoutMask): string =
     var flags: seq[string]
     for flag in layout:
         flags.add case flag
-        of VerticesInterleaved: "VInt"
-        of VerticesSeparated  : "VSep"
-        of TexturesInternal   : "TInt"
-        of TexturesExternal   : "TExt"
+        of lfVerticesInterleaved: "VInt"
+        of lfVerticesSeparated  : "VSep"
+        of lfTexturesInternal   : "TInt"
+        of lfTexturesExternal   : "TExt"
 
     if "VInt" notin flags and "VSep" notin flags:
         flags.insert("VInt", 0)
@@ -48,8 +48,8 @@ func layout_to_string(layout: LayoutMask): string =
 
 func verts_to_string(flags: array[8, VertexKind]): string =
     flags.foldl(
-        if b != None:
-            a & &"[{to_lower_ascii $b}]"
+        if b != vtxNone:
+            a & &"[{to_lower_ascii ($b)[3..^1]}]"
         else:
             a,
         "")
@@ -85,7 +85,7 @@ proc write_header(header: Header; file_name: string) =
     write verts_to_string header.vertex_kinds, sizeof Header.vertex_kinds
     stdout.write "\n"
 
-    let cmp_str = if header.compression_kind == None: "No Compression" else: $header.compression_kind
+    let cmp_str = if header.compression_kind == cmpNone: "No Compression" else: ($header.compression_kind)[3..^1]
     write cmp_str                             , sizeof Header.compression_kind
     write &"{header.mesh_count} Meshes"       , sizeof Header.mesh_count
     write &"{header.material_count} Materials", sizeof Header.material_count
@@ -119,7 +119,7 @@ proc write_meshes(header: Header; file: FileStream; file_name: string) =
         while count > 0:
             colour = StartColour
             for flag in header.vertex_kinds:
-                if flag == None:
+                if flag == vtxNone:
                     continue
 
                 # TODO: fix partial writes when terminal width is multiple of output size
@@ -153,15 +153,13 @@ proc write_materials(header: Header; file: FileStream; file_name: string; mtl_da
         # Material Data
         var buf: array[4, float32]
         for val in header.material_values:
-            if val == None:
+            if val == mtlNone:
                 continue
 
             if file.read_data(buf.addr, val.size) != val.size:
                 error &"Error reading material data for '{val}'"
             let msg = &"{val} {buf}"
             write msg.center msg.len, scale div 8
-            # echo val, ": ", val.size
-            # echo buf
         stdout.write "\n"
 
         # Textures
@@ -205,7 +203,7 @@ proc analyze*(file_name: string; mtl_data: seq[TextureDescriptor]) =
         error &"Invalid header, file '{file_name}' does not appear to be a valid Nai file"
         quit 1
 
-    if header.compression_kind == None:
+    if header.compression_kind == cmpNone:
         header.write_meshes    file, file_name
         header.write_materials file, file_name, mtl_data
         assert file.at_end

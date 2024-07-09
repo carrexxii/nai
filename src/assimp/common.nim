@@ -12,9 +12,9 @@ const
     AIMaxTextureCoords* = 0x8
 
 type AIReturn* {.size: sizeof(cint).} = enum
-    Success     =  0x0
-    Failure     = -0x1
-    OutOfMemory = -0x3
+    aiSuccess     =  0x0
+    aiFailure     = -0x1
+    aiOutOfMemory = -0x3
 
 type
     AIReal* = float32
@@ -45,16 +45,16 @@ type
         max*: AIVec3
 
     AIMetaDataKind* {.importc: "enum".} = enum
-        Bool
-        Int32
-        UInt64
-        Float
-        Double
-        String
-        Vec3
-        MetaData
-        Int64
-        UInt32
+        mdBool
+        mdInt32
+        mdUInt64
+        mdFloat
+        mdDouble
+        mdString
+        mdVec3
+        mdMetaData
+        mdInt64
+        mdUInt32
     AIMetaDataEntry* = object
         kind*: AIMetaDataKind
         data*: pointer

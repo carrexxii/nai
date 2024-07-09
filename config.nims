@@ -47,7 +47,7 @@ let
     linker_flags = &"-L{lib_dir} -Wl,-rpath,'\\$ORIGIN/{lib_dir}' -lassimp -lispc_texcomp -lz"
     debug_flags = &"--cc:tcc --passL:\"{linker_flags}\" --nimCache:{build_dir} -o:{bin_path} " &
                   &"--passL:\"-ldl -lm\" --tlsEmulation:on -d:useMalloc"
-    release_flags = &"--cc:gcc --passL:\"{linker_flags}\" --nimCache:{build_dir} -o:{bin_path} -d:release -d:danger --opt:speed"
+    release_flags = &"--cc:gcc --passL:\"{linker_flags}\" --nimCache:{build_dir} -o:{bin_path} -d:release -d:danger -d:lto --opt:speed"
     post_release = @[""]
 
 #[ -------------------------------------------------------------------- ]#

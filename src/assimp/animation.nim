@@ -5,10 +5,10 @@
 import common
 
 type AIAnimBehaviour* {.size: sizeof(cint).} = enum
-    Default
-    Constant
-    Linear
-    Repeat
+    animDefault
+    animConstant
+    animLinear
+    animRepeat
 
 type
     AIAnimation* = object

@@ -1,11 +1,15 @@
+# This file is a part of Nai. Copyright (C) 2024 carrexxii.
+# It is distributed under the terms of the GNU General Public License version 3 only.
+# For a copy, see the LICENSE file or <https://www.gnu.org/licenses/>.
+
 import common, nai
 
 type
     CompressionLevel* = enum
-        None
-        Default
-        Speed
-        Size
+        clvlNone
+        clvlDefault
+        clvlSpeed
+        clvlSize
 
     ZLibReturn = enum
         zlOk           = 0
@@ -26,10 +30,10 @@ type
 
 converter level_to_zlib_level(level: CompressionLevel): ZLibCompressionLevel =
     case level
-    of None   : zlNoCompression
-    of Default: zlDefaultCompression
-    of Speed  : zlBestSpeed
-    of Size   : zlBestCompression
+    of clvlNone   : zlNoCompression
+    of clvlDefault: zlDefaultCompression
+    of clvlSpeed  : zlBestSpeed
+    of clvlSize   : zlBestCompression
 
 #[ -------------------------------------------------------------------- ]#
 
@@ -48,8 +52,8 @@ proc get_versions*(): seq[tuple[name, version: string]] =
 
 proc compress*(kind: CompressionKind; level: CompressionLevel; data: openArray[byte]): tuple[data: ptr byte, size: uint] =
     case kind
-    of None: result = (data: cast[ptr byte](data[0].addr), size: uint data.len)
-    of ZLib:
+    of cmpNone: result = (data: cast[ptr byte](data[0].addr), size: uint data.len)
+    of cmpZLib:
         result.size = zlib_compress_bound (culong data.len)
         result.data = cast[ptr byte](alloc result.size)
         let res = zlib_compress(result.data , result.size.addr,

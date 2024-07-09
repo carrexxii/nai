@@ -53,29 +53,29 @@ proc write_meshes*(header: Header; scene: ptr AIScene; file: Stream) =
         # Header
         let mesh_header = MeshHeader(
             material_index: uint16 mesh.material_index,
-            index_size    : Index32,
+            index_size    : isz32Bit, # TODO: index size option
             vert_count    : mesh.vertex_count,
             index_count   : uint32 index_count,
         )
         file.write mesh_header
 
         # TODO
-        if VerticesSeparated in header.layout_mask:
+        if lfVerticesSeparated in header.layout_mask:
             assert false
 
         # Vertices
         func confirm_vert_kind(mesh: ptr AIMesh; kind: VertexKind): bool =
             case kind
-            of None: false
-            of Position, Normal, Tangent , Bitangent:
+            of vtxNone: false
+            of vtxPosition, vtxNormal, vtxTangent, vtxBitangent:
                 mesh.vertex_count > 0
-            of ColourRGBA, ColourRGB:
+            of vtxColourRGBA, vtxColourRGB:
                 mesh.colours.foldl(a + (if b == nil: 0 else: 1), 0) > 0
-            of UV, UV3:
+            of vtxUV, vtxUV3:
                 mesh.texture_coords.foldl(a + (if b == nil: 0 else: 1), 0) > 0
 
-        let vert_kinds = header.vertex_kinds.filter_it: it != None
-        let interleave = VerticesInterleaved in header.layout_mask
+        let vert_kinds = header.vertex_kinds.filter_it: it != vtxNone
+        let interleave = lfVerticesInterleaved in header.layout_mask
         var vert_mem  = cast[ptr UncheckedArray[uint8]](alloc vert_size * int mesh.vertex_count)
         var offset = 0
         for (i, kind) in enumerate vert_kinds:
@@ -88,14 +88,14 @@ proc write_meshes*(header: Header; scene: ptr AIScene; file: Stream) =
                 let dst = vert_mem[p].addr
                 var src: pointer
                 case kind
-                of Position  : src = mesh.vertices[i].addr
-                of Normal    : src = mesh.normals[i].addr
-                of Tangent   : src = mesh.tangents[i].addr
-                of Bitangent : src = mesh.bitangents[i].addr
-                of ColourRGBA: src = mesh.colours[i].addr
-                of ColourRGB : src = mesh.colours[i].addr
-                of UV        : src = mesh.texture_coords[0][i].addr
-                of UV3       : src = mesh.texture_coords[0][i].addr
+                of vtxPosition  : src = mesh.vertices[i].addr
+                of vtxNormal    : src = mesh.normals[i].addr
+                of vtxTangent   : src = mesh.tangents[i].addr
+                of vtxBitangent : src = mesh.bitangents[i].addr
+                of vtxColourRGBA: src = mesh.colours[i].addr
+                of vtxColourRGB : src = mesh.colours[i].addr
+                of vtxUV        : src = mesh.texture_coords[0][i].addr
+                of vtxUV3       : src = mesh.texture_coords[0][i].addr
                 else: assert false
 
                 copy_mem dst, src, kind.size
@@ -112,7 +112,7 @@ proc write_meshes*(header: Header; scene: ptr AIScene; file: Stream) =
                 file.write_data index32.addr, sizeof index32
 
 proc write_materials*(header: Header; scene: ptr AIScene; file: Stream; tex_descrips: seq[TextureDescriptor]; output_name: string) =
-    if {TexturesInternal, TexturesExternal} * header.layout_mask == {}:
+    if {lfTexturesInternal, lfTexturesExternal} * header.layout_mask == {}:
         return
 
     proc check_tex(mtl: ptr AIMaterial; kind: AITextureKind): bool =
@@ -146,16 +146,16 @@ proc write_materials*(header: Header; scene: ptr AIScene; file: Stream; tex_desc
 
         # Material data
         for val in header.material_values:
-            if val == None:
+            if val == mtlNone:
                 continue
 
             let buf = mtl.get_value val
             case buf.kind
-            of Boolean: file.write_data buf.bln.addr, 4
-            of Integer: file.write_data buf.num.addr, 4
-            of Float  : file.write_data buf.flt.addr, 4
-            of String : assert false, "TODO"# file.write_data buf.str.addr, 4
-            of Vector : file.write_data buf.vec.addr, 16
+            of tvBoolean: file.write_data buf.bln.addr, 4
+            of tvInteger: file.write_data buf.num.addr, 4
+            of tvFloat  : file.write_data buf.flt.addr, 4
+            of tvString : assert false, "TODO"# file.write_data buf.str.addr, 4
+            of tvVector : file.write_data buf.vec.addr, 16
 
         # Textures
         for tex_data in tex_datas:
@@ -196,19 +196,19 @@ proc write_materials*(header: Header; scene: ptr AIScene; file: Stream; tex_desc
 
                 # Output
                 let dst_file =
-                    if TexturesInternal in header.layout_mask:
+                    if lfTexturesInternal in header.layout_mask:
                         file
                     else:
-                        let ext = to_lower_ascii (if tex_data.container != None: $tex_data.container else: $tex_data.format)
+                        let ext = to_lower_ascii (if tex_data.container != cntNone: $tex_data.container else: $tex_data.format)
                         var file_name = output_name
                         file_name.remove_suffix ".nai"
                         file_name &= &"-{to_lower_ascii $tex_data.kind}.{ext}"
                         open_file_stream file_name, fmWrite
 
                 case tex_data.container
-                of None: dst_file.write_data final_tex, final_size
-                of PNG : dst_file.write_image PNG, int tex_header.w, int tex_header.h, tex_header.format.bpp div 8, final_tex
-                of DDS:
+                of cntNone: dst_file.write_data final_tex, final_size
+                of cntPNG : dst_file.write_image stbPNG, int tex_header.w, int tex_header.h, tex_header.format.bpp div 8, final_tex
+                of cntDDS:
                     dst_file.write encode_dds(
                         tex_data.format,
                         final_tex.to_oa final_size,
@@ -216,4 +216,7 @@ proc write_materials*(header: Header; scene: ptr AIScene; file: Stream; tex_desc
                     )
             else:
                 assert false
+
+# proc write_header*(header: Header) =
+
 

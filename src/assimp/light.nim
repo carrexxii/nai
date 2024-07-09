@@ -6,12 +6,12 @@ import common
 
 type
     AILightSourceKind* = enum
-        Undefined
-        Directional
-        Point
-        Spot
-        Ambient
-        Area
+        lsUndefined
+        lsDirectional
+        lsPoint
+        lsSpot
+        lsAmbient
+        lsArea
     AILight* = object
         name*                 : AIString
         kind*                 : AILightSourceKind

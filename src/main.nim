@@ -7,7 +7,7 @@ import
     common, assimp/assimp, ispctc, stbi, compress, nai, output, analyze, dds
 from std/os       import get_app_dir
 from std/files    import file_exists
-from std/sequtils import foldl, to_seq
+from std/sequtils import foldl, to_seq, map_it
 from std/setutils import full_set
 
 const ConfigFileName = "nai.ini"
@@ -95,19 +95,6 @@ proc bool_opt(key, val: string): bool =
         quit 1
 
 proc parse_config(cfg_file: Path): tuple[header: Header; tex_descrips: seq[TextureDescriptor]] =
-    func string_of_output_flags(): string {.compileTime.} =
-        result = "\t"
-        const set_str = $(full_set LayoutFlag)
-        for (i, c) in enumerate set_str:
-            if c == ',':
-                result.add "\n\t"
-                continue
-            elif c in [' ', ',', '{', '}']:
-                continue
-            elif (is_upper_ascii c) and (is_alpha_ascii set_str[i - 1]):
-                result.add ": "
-            result.add c
-
     var path = cfg_file
     if path == default Path:
         let cwd_ini_path = ~/get_app_dir() / ~/ConfigFileName
@@ -126,28 +113,34 @@ proc parse_config(cfg_file: Path): tuple[header: Header; tex_descrips: seq[Textu
         of "vertex":
             var vc = 0
             for val in config[key].keys:
-                result.header.vertex_kinds[vc] = parse_enum[VertexKind] val
-                inc vc
+                try:
+                    result.header.vertex_kinds[vc] = parse_enum[VertexKind] &"vtx{val}"
+                    inc vc
+                except ValueError:
+                    let kinds = ($(full_set VertexKind)).multireplace(("vtx", ""), ("{", ""), ("}", ""))
+                    error &"Invalid vertex kind '{val}': {kinds}"
+                    quit 1
         of "materials":
             var mc = 0
             for (k, v) in pairs config[key]:
                 if v == "":
                     try:
-                        result.header.material_values[mc] = parse_enum[MaterialValue] k
+                        result.header.material_values[mc] = parse_enum[MaterialValue] &"mtl{k}"
                         inc mc
                     except ValueError:
-                        error &"Invalid material value '{k}'"
+                        let kinds = ($(full_set MaterialValue)).multireplace(("mtl", ""), ("{", ""), ("}", ""))
+                        error &"Invalid material value '{k}': {kinds}"
                         quit 1
                 else:
                     try:
                         let dst = if '.' in v: v.split '.' else: @[v, ""]
                         result.tex_descrips.add TextureDescriptor(
-                            kind     : parse_enum[TextureKind]   k,
-                            format   : parse_enum[TextureFormat] dst[0],
+                            kind     : parse_enum[TextureKind]   &"tex{k}",
+                            format   : parse_enum[TextureFormat] &"tf{dst[0]}",
                             container: (if dst[1] == "":
-                                            None
+                                            cntNone
                                         else:
-                                            parse_enum[ContainerKind] dst[1]),
+                                            parse_enum[ContainerKind] &"cnt{dst[1]}"),
                         )
                     except ValueError:
                         error &"Invalid values for material: '{k}', '{v}'"
@@ -156,17 +149,15 @@ proc parse_config(cfg_file: Path): tuple[header: Header; tex_descrips: seq[Textu
             for (k, v) in pairs config[""]:
                 case k
                 of "Compression":
-                    try: result.header.compression_kind = parse_enum[CompressionKind](to_upper_ascii v)
+                    try: result.header.compression_kind = parse_enum[CompressionKind](&"cmp{to_upper_ascii v}")
                     except ValueError:
-                        let kinds = ($(full_set CompressionKind)).multireplace(("{", ""), ("}", ""))
-                        error &"Invalid compression kind '{v}'\n" &
-                              &"Valid values are: {kinds}"
+                        let kinds = ($(full_set CompressionKind)).multireplace(("cmp", ""), ("{", ""), ("}", ""))
+                        error &"Invalid compression kind '{v}': {kinds}"
                         quit 1
                 else:
-                    try: result.header.layout_mask.incl (parse_enum[LayoutFlag] &"{capitalize_ascii k}{capitalize_ascii v}")
+                    try: result.header.layout_mask.incl (parse_enum[LayoutFlag] &"lf{capitalize_ascii k}{capitalize_ascii v}")
                     except ValueError:
-                        error &"Invalid output flag '{k}: {v}'\n" &
-                              &"Valid values:\n{string_of_output_flags()})"
+                        error &"Invalid output flag '{k}: {v}'"
                         quit 1
         else:
             warning &"Unrecognized configuration section '{key}'"
@@ -180,8 +171,8 @@ proc parse_config(cfg_file: Path): tuple[header: Header; tex_descrips: seq[Textu
                 error &"Incompatible flags '{intersection}'"
                 result = true
 
-        if (check {TexturesInternal, TexturesExternal}) or
-           (check {VerticesInterleaved, VerticesSeparated}):
+        if (check {lfTexturesInternal, lfTexturesExternal}) or
+           (check {lfVerticesInterleaved, lfVerticesSeparated}):
             quit 1
 
 when is_main_module:
@@ -231,7 +222,7 @@ when is_main_module:
     case command
     of "convert":
         var flags = pfGenBoundingBoxes or pfRemoveRedundantMaterials
-        if Tangent in header.vertex_kinds:
+        if vtxTangent in header.vertex_kinds:
             flags = flags or pfCalcTangentSpace
 
         let scene = import_file($in_file, flags)
@@ -254,11 +245,11 @@ when is_main_module:
         header.write_materials scene, buffer, mtl_data, $out_file
 
         var file = open_file_stream($out_file, fmWrite)
-        if header.compression_kind != None:
+        if header.compression_kind != cmpNone:
             # The header must not be compressed
             let data      = cast[ptr UncheckedArray[byte]](buffer.data[sizeof Header].addr)
             let data_size = buffer.data.len - sizeof Header
-            let cmp_data = compress(header.compression_kind, Size, data.to_oa data_size)
+            let cmp_data = compress(header.compression_kind, clvlSize, data.to_oa data_size)
 
             file.write_data buffer.data[0].addr, sizeof Header
             file.write_data cmp_data.data      , int cmp_data.size
