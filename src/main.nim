@@ -191,7 +191,7 @@ when is_main_module:
             of "help"   , "h": write_help()
             of "verbose", "v": verbose  = key.bool_opt val
             of "quiet"  , "q": quiet    = key.bool_opt val
-            of "config" , "c": cfg_file = ~/key
+            of "config" , "c": cfg_file = ~/val
             of "output" , "o": out_file = ~/(val.check_present key)
             of "input"  , "i":
                 in_file.check_duplicate ~/"input"
