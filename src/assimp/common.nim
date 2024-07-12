@@ -87,3 +87,6 @@ func `$`*(aabb: AIAABB): string =
 
 proc get_assimp_error*(): cstring {.importc: "aiGetErrorString".}
 
+func xy*(v: AIVec3): AIVec2 =
+    AIVec2(x: v.x, y: v.y)
+

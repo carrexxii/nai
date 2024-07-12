@@ -67,40 +67,30 @@ proc write_meshes*(header: Header; scene: ptr AIScene; file: Stream) =
 
         let vert_kinds = header.vertex_kinds.filter_it: it != vtxNone
         let interleave = lfVerticesInterleaved in header.layout_mask # TODO: implement separated vertices
-        var vert_mem  = cast[ptr UncheckedArray[uint8]](alloc vert_size * int mesh.vertex_count)
         var offset = 0
         for (i, kind) in enumerate vert_kinds:
             if not mesh.confirm_vert_kind kind:
                 warning &"Mesh '{mesh.name}' does not contain {kind} vertices"
-                continue
 
-            var p = offset
-            for v in 0..<mesh.vertex_count:
-                let dst = vert_mem[p].addr
-                var src: pointer
+        for v in 0..<mesh.vertex_count:
+            for (i, kind) in enumerate vert_kinds:
                 case kind
-                of vtxPosition  : src = mesh.vertices[i].addr
-                of vtxNormal    : src = mesh.normals[i].addr
-                of vtxTangent   : src = mesh.tangents[i].addr
-                of vtxBitangent : src = mesh.bitangents[i].addr
-                of vtxColourRGBA: src = mesh.colours[i].addr
-                of vtxColourRGB : src = mesh.colours[i].addr
-                of vtxUV        : src = mesh.texture_coords[0][i].addr
-                of vtxUV3       : src = mesh.texture_coords[0][i].addr
-                else: assert false
+                of vtxPosition  : file.write mesh.vertices[v]
+                of vtxNormal    : file.write mesh.normals[v]
+                of vtxTangent   : file.write mesh.tangents[v]
+                of vtxBitangent : file.write mesh.bitangents[v]
+                of vtxColourRGBA: file.write mesh.colours[v]
+                of vtxColourRGB : file.write mesh.colours[v]
+                of vtxUV        : file.write mesh.texture_coords[0][v].xy
+                of vtxUV3       : file.write mesh.texture_coords[0][v]
+                of vtxNone:
+                    assert false
 
-                copy_mem dst, src, kind.size
-                p += vert_size
-
-            offset += kind.size
-
-        file.write_data vert_mem, vert_size * int mesh.vertex_count
-        dealloc vert_mem
-
+        # TODO: deal with different index sizes
         for face in mesh.faces.to_oa mesh.face_count:
             for index in face.indices.to_oa face.index_count:
                 let index32 = uint32 index
-                file.write_data index32.addr, sizeof index32
+                file.write index32
 
 proc write_materials*(header: Header; scene: ptr AIScene; file: Stream; tex_descrips: seq[TextureDescriptor]; output_name: string) =
     if {lfTexturesInternal, lfTexturesExternal} * header.layout_mask == {}:
