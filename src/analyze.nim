@@ -48,7 +48,7 @@ func layout_to_string(layout: LayoutMask): string =
 
 func verts_to_string(flags: array[8, VertexKind]): string =
     flags.foldl(
-        if b != vtxNone:
+        if b != vkNone:
             a & &"[{to_lower_ascii ($b)[3..^1]}]"
         else:
             a,
@@ -82,81 +82,81 @@ proc write_header(header: Header; file_name: string) =
     write layout_to_string header.layout_mask        , sizeof Header.layout_mask
     stdout.write "\n"
 
-    write verts_to_string header.vertex_kinds, sizeof Header.vertex_kinds
+    write verts_to_string header.vtx_kinds, sizeof Header.vtx_kinds
     stdout.write "\n"
 
-    let cmp_str = if header.compression_kind == cmpNone: "No Compression" else: ($header.compression_kind)[3..^1]
-    write cmp_str                             , sizeof Header.compression_kind
-    write &"{header.mesh_count} Meshes"       , sizeof Header.mesh_count
-    write &"{header.material_count} Materials", sizeof Header.material_count
-    write &"{header.texture_count} Textures"  , sizeof Header.texture_count
+    let cmp_str = if header.cmp_kind == ckNone: "No Compression" else: ($header.cmp_kind)[3..^1]
+    write cmp_str                      , sizeof Header.cmp_kind
+    write &"{header.mesh_cnt} Meshes"  , sizeof Header.mesh_cnt
+    write &"{header.mtl_cnt} Materials", sizeof Header.mtl_cnt
+    write &"{header.tex_cnt} Textures" , sizeof Header.tex_cnt
     stdout.write "\n"
-    write &"{header.animation_count} Animations", sizeof Header.animation_count
-    write &"{header.animation_count} Skeletons" , sizeof Header.skeleton_count
+    write &"{header.anim_cnt} Animations", sizeof Header.anim_cnt
+    write &"{header.anim_cnt} Skeletons" , sizeof Header.skeleton_cnt
     stdout.write "\n"
 
 proc write_meshes(header: Header; file: FileStream; file_name: string) =
-    let vert_size = header.vertex_kinds.foldl(a + b.size, 0)
+    let vtx_sz = header.vtx_kinds.foldl(a + b, 0)
     var mesh: MeshHeader
-    for i in 0..<int header.mesh_count:
+    for i in 0..<int header.mesh_cnt:
         file.read mesh
         let name = &"Mesh {i}"
-        let vert_msg = &"Vertex data... ({vert_size * int mesh.vert_count}B / " &
-                       &"{vert_size * (int mesh.vert_count) / 1024:.2f}kB / "   &
-                       &"{vert_size * (int mesh.vert_count) / 1024 / 1024:.2f}MB)"
+        let vtx_msg = &"Vertex data... ({vtx_sz * int mesh.vtx_cnt}B / " &
+                      &"{vtx_sz * (int mesh.vtx_cnt) / 1024:.2f}kB / "   &
+                      &"{vtx_sz * (int mesh.vtx_cnt) / 1024 / 1024:.2f}MB)"
         stdout.styled_write bgWhite, fgBlack, name.center 8 * scale, bgDefault, "\n"
-        write &"Index {mesh.material_index}" , sizeof mesh.material_index
-        write &"Index size {mesh.index_size}", sizeof mesh.index_size
-        write &"{mesh.vert_count} Vertices"  , sizeof mesh.vert_count
+        write &"Index {mesh.mtl_idx}"    , sizeof mesh.mtl_idx
+        write &"Index size {mesh.idx_sz}", sizeof mesh.idx_sz
+        write &"{mesh.vtx_cnt} Vertices" , sizeof mesh.vtx_cnt
         stdout.write "\n"
-        write &"{mesh.index_count} Indices", sizeof mesh.index_count
-        write vert_msg                     , sizeof mesh.index_count
+        write &"{mesh.idx_cnt} Indices", sizeof mesh.idx_cnt
+        write vtx_msg                  , sizeof mesh.idx_cnt
         stdout.write "\n"
 
         # TODO: add data preview for empty rows
         var rows  = ShadeChars.len
-        var count = 8 * scale
-        while count > 0:
+        var cnt = 8 * scale
+        while cnt > 0:
             colour = StartColour
-            for flag in header.vertex_kinds:
-                if flag == vtxNone:
+            for flag in header.vtx_kinds:
+                if flag == vkNone:
                     continue
 
                 # TODO: fix partial writes when terminal width is multiple of output size
-                let size = min(count, flag.size)
+                let sz = min(cnt, flag)
                 if rows == ShadeChars.len:
                     let str = flag.abbrev.foldl(a & ($b).align_left(scale div 4, '.'), "")
-                    stdout.styled_write ++colour, fgBlack, str.center(size, ' ')
+                    stdout.styled_write ++colour, fgBlack, str.center(sz, ' ')
                 else:
-                    stdout.styled_write ++colour, fgBlack, ShadeChars[rows - 1].repeat size
-                count -= size
+                    stdout.styled_write ++colour, fgBlack, ShadeChars[rows - 1].repeat sz
+                cnt -= sz
 
-            if rows > 1 and count <= 0:
+            if rows > 1 and cnt <= 0:
                 dec rows
-                count = 8 * scale
+                cnt = 8 * scale
                 stdout.write "\n"
         stdout.write "\n"
 
         # Skip that vertex and index data in the stream
-        let inds_size = (int mesh.index_count) * mesh.index_size
-        let mtl_pos   = file.get_position() + vert_size*(int mesh.vert_count) + inds_size
+        let idx_sz  = (int mesh.idx_cnt) * mesh.idx_sz
+        let mtl_pos = file.get_position() + vtx_sz*(int mesh.vtx_cnt) + idx_sz
         file.set_position mtl_pos
 
 proc write_materials(header: Header; file: FileStream; file_name: string; mtl_data: seq[TextureDescriptor]) =
-    var material: MaterialHeader
-    for i in 0..<int header.material_count:
+    var mtl: MaterialHeader
+    for i in 0..<int header.mtl_cnt:
         # Header
-        file.read material
+        file.read mtl
         let name = &"Material {i}"
         stdout.styled_write bgWhite, fgBlack, name.center 8 * scale, bgDefault, "\n"
 
         # Material Data
         var buf: array[4, float32]
-        for val in header.material_values:
-            if val == mtlNone:
+        for val in header.mtl_vals:
+            if val == mvNone:
                 continue
 
-            if file.read_data(buf.addr, val.size) != val.size:
+            if file.read_data(buf.addr, val) != val:
                 error &"Error reading material data for '{val}'"
             let msg = &"{val} {buf}"
             write msg.center msg.len, scale div 8
@@ -164,27 +164,27 @@ proc write_materials(header: Header; file: FileStream; file_name: string; mtl_da
 
         # Textures
         var tex: TextureHeader
-        for j in 0..<int material.texture_count:
+        for j in 0..<int mtl.tex_cnt:
             file.read tex
             write &"{tex.kind}"    , sizeof tex.kind
-            write &"{tex.format}"  , sizeof tex.format
+            write &"{tex.fmt}"     , sizeof tex.fmt
             write &"Width {tex.w}" , sizeof tex.w
             write &"Height {tex.h}", sizeof tex.h
             stdout.write "\n"
 
-            let tex_size = tex.format.size(int tex.w, int tex.h)
-            write &"Texture Data... ({bytes_to_string tex_size})", 8
+            let tex_sz = tex.fmt.size(int tex.w, int tex.h)
+            write &"Texture Data... ({bytes_to_string tex_sz})", 8
             stdout.write "\n"
             for k in 0..<ShadeChars.len:
                 stdout.styled_write styleDim, fgBlue, ShadeChars[k].repeat 8 * scale, bgDefault, "\n"
 
             # Skip the texture data
-            file.set_position (file.get_position() + tex_size)
+            file.set_position (file.get_position() + tex_sz)
 
 proc analyze*(file_name: string; mtl_data: seq[TextureDescriptor]) =
     var file: FileStream
     try: file = file_name.open_file_stream fmRead
-    except IOError:
+    except IoError:
         error &"Failed to open '{file_name}'"
         quit 1
 
@@ -193,8 +193,8 @@ proc analyze*(file_name: string; mtl_data: seq[TextureDescriptor]) =
         error &"Failed to read header for '{file_name}'"
         quit 1
 
-    if header.magic != NAIMagic:
-        const magic = fourcc_to_string NAIMagic
+    if header.magic != Magic:
+        const magic = fourcc_to_string Magic
         let   mstr  = fourcc_to_string header.magic
         warning &"File '{file_name}' does not have a correct magic value ({magic}), got: {mstr}"
 
@@ -203,9 +203,8 @@ proc analyze*(file_name: string; mtl_data: seq[TextureDescriptor]) =
         error &"Invalid header, file '{file_name}' does not appear to be a valid Nai file"
         quit 1
 
-    if header.compression_kind == cmpNone:
+    if header.cmp_kind == ckNone:
         header.write_meshes    file, file_name
         header.write_materials file, file_name, mtl_data
         assert file.at_end
     close file
-

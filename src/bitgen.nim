@@ -54,4 +54,3 @@ macro gen_bit_ops_inner(T: typedesc; flags: varargs[untyped]): untyped =
 template gen_bit_ops*(T: typedesc; flags: varargs[untyped]): untyped =
     static: assert T is distinct
     T.gen_bit_ops_inner flags
-

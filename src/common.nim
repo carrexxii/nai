@@ -19,7 +19,3 @@ proc warning*(msg: string) =
 
 proc error*(msg: string) =
     stderr.styled_write fgRed, "Error: ", msg, "\n"
-
-template to_oa*(arr, c): untyped =
-    to_open_array(arr, 0, int c - 1)
-

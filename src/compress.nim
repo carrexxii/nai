@@ -6,34 +6,34 @@ import common, nai
 
 type
     CompressionLevel* = enum
-        clvlNone
-        clvlDefault
-        clvlSpeed
-        clvlSize
+        clNone
+        clDefault
+        clSpeed
+        clSize
 
     ZLibReturn = enum
-        zlOk           = 0
-        zlStreamEnd    = 1
-        zlNeedDict     = 2
-        zlErrNo        = -1
-        zlStreamError  = -2
-        zlDataError    = -3
-        zlMemError     = -4
-        zlBufError     = -5
-        zlVersionError = -6
+        zlrOk           = 0
+        zlrStreamEnd    = 1
+        zlrNeedDict     = 2
+        zlrErrNo        = -1
+        zlrStreamError  = -2
+        zlrDataError    = -3
+        zlrMemError     = -4
+        zlrBufError     = -5
+        zlrVersionError = -6
 
     ZLibCompressionLevel = enum
-        zlNoCompression      = 0
-        zlBestSpeed          = 1
-        zlBestCompression    = 9
-        zlDefaultCompression = -1
+        zlclNoCompression      = 0
+        zlclBestSpeed          = 1
+        zlclBestCompression    = 9
+        zlclDefaultCompression = -1
 
 converter level_to_zlib_level(level: CompressionLevel): ZLibCompressionLevel =
     case level
-    of clvlNone   : zlNoCompression
-    of clvlDefault: zlDefaultCompression
-    of clvlSpeed  : zlBestSpeed
-    of clvlSize   : zlBestCompression
+    of clNone   : zlclNoCompression
+    of clDefault: zlclDefaultCompression
+    of clSpeed  : zlclBestSpeed
+    of clSize   : zlclBestCompression
 
 #[ -------------------------------------------------------------------- ]#
 
@@ -50,16 +50,15 @@ proc zlib_compress_bound(src_len: culong): culong                               
 proc get_versions*(): seq[tuple[name, version: string]] =
     @[("zlib", $zlib_version())]
 
-proc compress*(kind: CompressionKind; level: CompressionLevel; data: openArray[byte]): tuple[data: ptr byte, size: uint] =
+proc compress*(kind: CompressionKind; lvl: CompressionLevel; data: openArray[byte]): tuple[data: ptr byte, sz: uint] =
     case kind
-    of cmpNone: result = (data: cast[ptr byte](data[0].addr), size: uint data.len)
-    of cmpZLib:
-        result.size = zlib_compress_bound (culong data.len)
-        result.data = cast[ptr byte](alloc result.size)
-        let res = zlib_compress(result.data , result.size.addr,
+    of ckNone: result = (data: cast[ptr byte](data[0].addr), sz: uint data.len)
+    of ckZLib:
+        result.sz   = zlib_compress_bound (culong data.len)
+        result.data = cast[ptr byte](alloc result.sz)
+        let res = zlib_compress(result.data , result.sz.addr,
                                 data[0].addr, culong data.len,
-                                level)
-        if res != zlOk:
+                                lvl)
+        if res != zlrOk:
             error &"Error compression data ({data}) using ZLib: '{res}'"
             quit 1
-

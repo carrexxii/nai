@@ -3,90 +3,92 @@
 # For a copy, see the LICENSE file or <https://www.gnu.org/licenses/>.
 
 import "../common"
-export `&`, to_oa
+export `&`
 
 const
     NoArmaturePopulateProcess* = true
-    AIMaxStringLen*     = 1024
-    AIMaxColourSets*    = 0x8
-    AIMaxTextureCoords* = 0x8
-
-type AIReturn* {.size: sizeof(cint).} = enum
-    aiSuccess     =  0x0
-    aiFailure     = -0x1
-    aiOutOfMemory = -0x3
+    AiMaxStringLen*     = 1024
+    AiMaxColourSets*    = 0x8
+    AiMaxTextureCoords* = 0x8
 
 type
-    AIReal* = float32
+    AiReturn* {.size: sizeof(cint).} = enum
+        returnSuccess     =  0x0
+        returnFailure     = -0x1
+        returnOutOfMemory = -0x3
 
-    AIString* = object
+    AiMetaDataKind* {.size: sizeof(cint).} = enum
+        mdkBool
+        mdkInt32
+        mdkUInt64
+        mdkFloat
+        mdkDouble
+        mdkString
+        mdkVec3
+        mdkMetaData
+        mdkInt64
+        mdkUInt32
+
+type
+    AiReal* = float32
+
+    AiString* = object
         len* : uint32
-        data*: array[AIMaxStringLen, char]
+        data*: array[AiMaxStringLen, char]
 
-    AIVec2* = object
-        x*, y*: AIReal
-    AIVec3* = object
-        x*, y*, z*: AIReal
-    AIQuat* = object
-        w*, x*, y*, z*: AIReal
-    AIColour* = object
-        r*, g*, b*, a*: AIReal
-    AIColour3* = object
-        r*, g*, b*: AIReal
+    AiVec2* = object
+        x*, y*: AiReal
+    AiVec3* = object
+        x*, y*, z*: AiReal
+    AiQuat* = object
+        w*, x*, y*, z*: AiReal
+    AiColour* = object
+        r*, g*, b*, a*: AiReal
+    AiColour3* = object
+        r*, g*, b*: AiReal
 
-    AIMat4x4* = object
-        a1*, a2*, a3*, a4*: AIReal
-        b1*, b2*, b3*, b4*: AIReal
-        c1*, c2*, c3*, c4*: AIReal
-        d1*, d2*, d3*, d4*: AIReal
+    AiMat4x4* = object
+        a1*, a2*, a3*, a4*: AiReal
+        b1*, b2*, b3*, b4*: AiReal
+        c1*, c2*, c3*, c4*: AiReal
+        d1*, d2*, d3*, d4*: AiReal
 
-    AIAABB* = object
-        min*: AIVec3
-        max*: AIVec3
+    AiAabb* = object
+        min*: AiVec3
+        max*: AiVec3
 
-    AIMetaDataKind* {.importc: "enum".} = enum
-        mdBool
-        mdInt32
-        mdUInt64
-        mdFloat
-        mdDouble
-        mdString
-        mdVec3
-        mdMetaData
-        mdInt64
-        mdUInt32
-    AIMetaDataEntry* = object
-        kind*: AIMetaDataKind
+    AiMetaDataEntry* = object
+        kind*: AiMetaDataKind
         data*: pointer
-    AIMetaData* = object
-        properties_count*: uint32
-        keys*            : ptr UncheckedArray[AIString]
-        values*          : ptr UncheckedArray[AIMetaDataEntry]
 
-    AINode* = object
-        name*          : AIString
-        transform*     : AIMat4x4
-        parent*        : ptr AINode
+    AiMetaData* = object
+        properties_count*: uint32
+        keys*            : ptr UncheckedArray[AiString]
+        values*          : ptr UncheckedArray[AiMetaDataEntry]
+
+    AiNode* = object
+        name*          : AiString
+        transform*     : AiMat4x4
+        parent*        : ptr AiNode
         children_count*: uint32
-        children*      : ptr UncheckedArray[ptr AINode]
+        children*      : ptr UncheckedArray[ptr AiNode]
         mesh_count*    : uint32
         meshes*        : ptr uint32
-        meta_data*     : AIMetaData
+        meta_data*     : AiMetaData
 
-proc `$`*(str: AIString): string =
+proc `$`*(str: AiString): string =
     if str.len == 0:
         result = ""
     else:
         result = new_string str.len
         copy_mem(result[0].addr, str.data[0].addr, str.len)
 
-func `$`*(aabb: AIAABB): string =
+func `$`*(aabb: AiAabb): string =
     let max = aabb.max
     let min = aabb.min
     result = &"[max({max.x:.2f}, {max.y:.2f}, {max.z:.2f}) -> min({min.x:.2f}, {min.y:.2f}, {min.z:.2f})]"
 
 proc get_assimp_error*(): cstring {.importc: "aiGetErrorString".}
 
-func xy*(v: AIVec3): AIVec2 =
-    AIVec2(x: v.x, y: v.y)
-
+func xy*(v: AiVec3): AiVec2 =
+    AiVec2(x: v.x, y: v.y)

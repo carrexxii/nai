@@ -1,6 +1,7 @@
 * Output specified as directory with automatic filename
 * Skipping compilation when output file already exists
 * Some form of header customization
+* Count number of meshes/materials/etc instead of using scene totals
 
 * Parallelization
 * Animation
@@ -11,6 +12,7 @@ Textures
 * Add proper ASTC support
 
 Compression:
+* Mesh Optimizer
 * LZ4
 * Brotli
 

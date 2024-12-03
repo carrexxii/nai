@@ -21,12 +21,12 @@ converter make_fourcc(fcc: array[4, char]): uint32 =
     ((uint32 fcc[3]) shl 24)
 
 const
-    DDSMagic: uint32 = ['D', 'D', 'S', ' ']
-    DDSHeaderSize      = 124
-    DDSPixelFormatSize = 32
+    Magic: uint32 = ['D', 'D', 'S', ' ']
+    HeaderSize      = 124
+    PixelFormatSize = 32
 
-type DDSFlag = distinct uint32
-DDSFlag.gen_bit_ops(
+type Flag = distinct uint32
+Flag.gen_bit_ops(
     ddsCaps, ddsHeight, ddsWidth, ddsPitch,
     _, _, _, _,
     _, _, _, _,
@@ -35,72 +35,71 @@ DDSFlag.gen_bit_ops(
     _, _, _, ddsDepth,
 )
 
-type DDSPixelFormatFlag = distinct uint32
-DDSPixelFormatFlag.gen_bit_ops(
-    pfAlphaPixels, pfAlpha, pfFourCC, _,
-    _, pfPalette8, pfRGB, _,
-    _, pfYUV, _, _,
+type PixelFormatFlag = distinct uint32
+PixelFormatFlag.gen_bit_ops(
+    pxFmtAlphaPixels, pxFmtAlpha, pxFmtFourCc, _,
+    _, pxFmtPalette8, pxFmtRgb, _,
+    _, pxFmtYUV, _, _,
     _, _, _, _,
-    _, pfLuminance,
+    _, pxFmtLuminance,
 )
-const pfPalette8A*  = pfPalette8  or pfAlphaPixels
-const pfLuminanceA* = pfLuminance or pfAlphaPixels
-const pfRGBA*       = pfRGB       or pfAlphaPixels
+const pxFmtPalette8A*  = pxFmtPalette8  or pxFmtAlphaPixels
+const pxFmtLuminanceA* = pxFmtLuminance or pxFmtAlphaPixels
+const pxFmtRGBA*       = pxFmtRgb       or pxFmtAlphaPixels
 
-type DDSSurfaceFlag = distinct uint32
-DDSSurfaceFlag.gen_bit_ops(
-    _, _, _, sfCubemap,
+type SurfaceFlag = distinct uint32
+SurfaceFlag.gen_bit_ops(
+    _, _, _, surfCubemap,
     _, _, _, _,
     _, _, _, _,
-    sfTexture, _, _, _,
+    surfTexture, _, _, _,
     _, _, _, _,
-    _, _, sfMipmap,
+    _, _, surfMipMap,
 )
 
-type DDSCubemapFlag = distinct uint32
-DDSCubemapFlag.gen_bit_ops(
+type CubemapFlag = distinct uint32
+CubemapFlag.gen_bit_ops(
     _, _, _, _,
     _, _, _, _,
-    _, cfCubemap, cfPositiveX, cfNegativeX,
-    cfPositiveY, cfNegativeY, cfPositiveZ, cfNegativeZ,
+    _, cubemapCubemap, cubemapPositiveX, cubemapNegativeX,
+    cubemapPositiveY, cubemapNegativeY, cubemapPositiveZ, cubemapNegativeZ,
     _, _, _, _,
-    _, cfVolume,
+    _, cubemapVolume,
 )
-const cfAllFaces* =
-    cfPositiveX or cfNegativeX or
-    cfPositiveY or cfNegativeY or
-    cfPositiveZ or cfNegativeZ
+const cubemapAllFaces* = cubemapPositiveX or cubemapNegativeX or
+                         cubemapPositiveY or cubemapNegativeY or
+                         cubemapPositiveZ or cubemapNegativeZ
 
-type D3DMiscFlag = distinct uint32
-D3DMiscFlag.gen_bit_ops(
-    d3GenerateMips, d3Shared, d3TextureCube, _,
-    d3DrawIndirectArgs, d3dBufferAllowRawViews, d3BufferStructured, d3ResourceClamp,
-    d3SharedKeyedMutex, d3GDICompatible, _, d3SharedNthHandle,
-    d3RestrictedContent, d3RestrictSharedResource, d3RestrictSharedResourceDriver, d3Guarded,
-    _, d3TilePool, d3Tiled, d3HWProtected,
+type D3dMiscFlag = distinct uint32
+D3dMiscFlag.gen_bit_ops(
+    d3dGenerateMips     , d3dShared                , d3dTextureCube                 , _,
+    d3dDrawIndirectArgs , d3dBufferAllowRawViews   , d3dBufferStructured            , d3dResourceClamp,
+    d3dSharedKeyedMutex , d3dGdiCompatible         , _                              , d3dSharedNthHandle,
+    d3dRestrictedContent, d3dRestrictSharedResource, d3dRestrictSharedResourceDriver, d3dGuarded,
+    _                   , d3dTilePool              , d3dTiled                       , d3dHwProtected,
 )
-const SharedDisplayable*     = D3DMiscFlag (1 + int d3HWProtected)
-const SharedExclusiveWriter* = D3DMiscFlag (2 + int d3HWProtected)
+const d3dSharedDisplayable*     = D3dMiscFlag (1 + int d3dHwProtected)
+const d3dSharedExclusiveWriter* = D3dMiscFlag (2 + int d3dHwProtected)
 
 type
-    DXGIFormat {.size: sizeof(uint32).} = enum
-        dxgiUnknown       = 0
-        dxgiR8G8B8A8UNorm = 28
-        dxgiBC1UNorm      = 71
-        dxgiBC3UNorm      = 77
-        dxgiBC4UNorm      = 80
-        dxgiBC5UNorm      = 83
-        dxgiBC6HUF16      = 95
-        dxgiBC7UNorm      = 98
+    DxGiFormat {.size: sizeof(cint).} = enum
+        dgfUnknown       = 0
+        dgfR8G8B8A8UNorm = 28
+        dgfBC1UNorm      = 71
+        dgfBC3UNorm      = 77
+        dgfBC4UNorm      = 80
+        dgfBC5UNorm      = 83
+        dgfBC6HUF16      = 95
+        dgfBC7UNorm      = 98
 
-    D3DResourceDimension {.size: sizeof(uint32).} = enum
+    D3dResourceDimension {.size: sizeof(cint).} = enum
         rdUnknown
         rdBuffer
         rdTexture1D
         rdTexture2D
         rdTexture3D
 
-    DDSAlphaMode {.size: sizeof(uint32).} = enum
+    AlphaMode {.size: sizeof(cint).} = enum
         amUnknown
         amStraight
         amPremultiplied
@@ -108,9 +107,9 @@ type
         amCustom
 
 type
-    DDSPixelFormat = object
-        size         : uint32 = DDSPixelFormatSize
-        flags        : DDSPixelFormatFlag
+    PixelFormat = object
+        sz           : uint32 = PixelFormatSize
+        flags        : PixelFormatFlag
         fourcc       : uint32
         rgb_bit_count: uint32
         rbit_mask    : uint32
@@ -118,39 +117,38 @@ type
         bbit_mask    : uint32
         abit_mask    : uint32
 
-    DDSHeader = object
-        size                : uint32 = DDSHeaderSize
-        flags               : DDSFlag
-        height              : uint32
-        width               : uint32
-        pitch_or_linear_size: uint32
-        depth               : uint32 # Only for volume textures
-        mipmap_count        : uint32
-        reserved1           : array[11, uint32]
-        pf                  : DDSPixelFormat
-        surface_flags       : DDSSurfaceFlag # caps1
-        cubemap_flags       : DDSCubemapFlag # caps2
-        caps3               : uint32 # Unused
-        caps4               : uint32 # Unused
-        reserved2           : uint32
+    Header = object
+        sz                : uint32 = HeaderSize
+        flags             : Flag
+        h, w              : uint32
+        pitch_or_linear_sz: uint32
+        d                 : uint32 # Only for volume textures
+        mip_map_count     : uint32
+        reserved1         : array[11, uint32]
+        px_fmt            : PixelFormat
+        surf_flags        : SurfaceFlag # caps1
+        cubemap_flags     : CubemapFlag # caps2
+        caps3             : uint32 # Unused
+        caps4             : uint32 # Unused
+        reserved2         : uint32
 
-    DDSHeaderDXT10 = object
-        dxgi_format       : DXGIFormat
-        resource_dimension: D3DResourceDimension
-        misc_flag         : D3DMiscFlag
-        array_size        : uint32
-        misc_flags2       : DDSAlphaMode
+    HeaderDxt10 = object
+        dxgi_fmt   : DxGiFormat
+        res_dim    : D3dResourceDimension
+        misc_flag  : D3dMiscFlag
+        arr_sz     : uint32
+        misc_flags2: AlphaMode
 
-    DDSFile* = object
-        magic*       : uint32 = DDSMagic
-        header*      : DDSHeader
-        dxt10_header*: DDSHeaderDXT10
+    File* = object
+        magic*       : uint32 = Magic
+        header*      : Header
+        dxt10_header*: HeaderDxt10
         data*, data2*: ptr byte
-        data_size*   : int
-        data_size2*  : int
+        data_sz*     : int
+        data_sz2*    : int
 
-func pixel_format(flags: DDSPixelFormatFlag; fourcc, cbc, rm, gm, bm, am: uint32): DDSPixelFormat =
-    DDSPixelFormat(
+func pixel_format(flags: PixelFormatFlag; fourcc, cbc, rm, gm, bm, am: uint32): PixelFormat =
+    PixelFormat(
         flags        : flags,
         fourcc       : fourcc,
         rgb_bit_count: cbc,
@@ -161,49 +159,49 @@ func pixel_format(flags: DDSPixelFormatFlag; fourcc, cbc, rm, gm, bm, am: uint32
     )
 
 const PixelFormats = to_table {
-    cmpNoneRGB : pixel_format(pfRGB , ['\0', '\0', '\0', '\0'], 24, 0x0000_00FF, 0x0000_FF00, 0x00FF_0000, 0),
-    cmpNoneRGBA: pixel_format(pfRGBA, ['\0', '\0', '\0', '\0'], 32, 0x0000_00FF, 0x0000_FF00, 0x00FF_0000, 0xFF00_0000'u32),
-    cmpBC1 : pixel_format(pfFourCC, ['D', 'X', 'T', '1'], 0, 0, 0, 0, 0),
-    cmpBC3 : pixel_format(pfFourCC, ['D', 'X', 'T', '4'], 0, 0, 0, 0, 0), # DXT5 without alpha
-    cmpBC4 : pixel_format(pfFourCC, ['A', 'T', 'I', '1'], 0, 0, 0, 0, 0),
-    cmpBC5 : pixel_format(pfFourCC, ['A', 'T', 'I', '2'], 0, 0, 0, 0, 0),
-    cmpBC6H: pixel_format(pfFourCC, ['D', 'X', '1', '0'], 0, 0, 0, 0, 0),
-    cmpBC7 : pixel_format(pfFourCC, ['D', 'X', '1', '0'], 0, 0, 0, 0, 0),
-    cmpETC1: pixel_format(pfFourCC, ['D', 'X', '1', '0'], 0, 0, 0, 0, 0),
-    cmpASTC: pixel_format(pfFourCC, ['D', 'X', '1', '0'], 0, 0, 0, 0, 0),
+    tckNoneRgb : pixel_format(pxFmtRgb , ['\0', '\0', '\0', '\0'], 24, 0x0000_00FF, 0x0000_FF00, 0x00FF_0000, 0),
+    tckNoneRgba: pixel_format(pxFmtRgba, ['\0', '\0', '\0', '\0'], 32, 0x0000_00FF, 0x0000_FF00, 0x00FF_0000, 0xFF00_0000'u32),
+    tckBc1 : pixel_format(pxFmtFourCc, ['D', 'X', 'T', '1'], 0, 0, 0, 0, 0),
+    tckBc3 : pixel_format(pxFmtFourCc, ['D', 'X', 'T', '4'], 0, 0, 0, 0, 0), # DXT5 without alpha
+    tckBc4 : pixel_format(pxFmtFourCc, ['A', 'T', 'I', '1'], 0, 0, 0, 0, 0),
+    tckBc5 : pixel_format(pxFmtFourCc, ['A', 'T', 'I', '2'], 0, 0, 0, 0, 0),
+    tckBc6H: pixel_format(pxFmtFourCc, ['D', 'X', '1', '0'], 0, 0, 0, 0, 0),
+    tckBc7 : pixel_format(pxFmtFourCc, ['D', 'X', '1', '0'], 0, 0, 0, 0, 0),
+    tckEtc1: pixel_format(pxFmtFourCc, ['D', 'X', '1', '0'], 0, 0, 0, 0, 0),
+    tckAstc: pixel_format(pxFmtFourCc, ['D', 'X', '1', '0'], 0, 0, 0, 0, 0),
 }
 
-func compression_to_format(kind: TextureCompressionKind): DXGIFormat =
+converter `TextureCompressionKind -> DxGiFormat`(kind: TextureCompressionKind): DxGiFormat =
     case kind
-    of cmpNoneRGB, cmpNoneRGBA: dxgiR8G8B8A8UNorm
-    of cmpBC1 : dxgiBC1UNorm
-    of cmpBC3 : dxgiBC3UNorm
-    of cmpBC4 : dxgiBC4UNorm
-    of cmpBC5 : dxgiBC5UNorm
-    of cmpBC6H: dxgiBC6HUF16
-    of cmpBC7 : dxgiBC7UNorm
-    of cmpETC1: dxgiUnknown
-    of cmpASTC: dxgiUnknown
+    of tckNoneRgb, tckNoneRgba: dgfR8G8B8A8UNorm
+    of tckBc1 : dgfBc1UNorm
+    of tckBc3 : dgfBc3UNorm
+    of tckBc4 : dgfBc4UNorm
+    of tckBc5 : dgfBc5UNorm
+    of tckBc6H: dgfBc6HUF16
+    of tckBc7 : dgfBc7UNorm
+    of tckEtc1: dgfUnknown
+    of tckAstc: dgfUnknown
 
 # block_size = 8 for DXT1 or 16 for DXT2-5
 func calc_mip_size(w, h, block_size: uint32): uint32 =
     result = max(1'u32, (w + 3) div 4) * max(1'u32, (h + 3) div 4)
     result *= block_size
 
-func get_bpp(kind: TextureCompressionKind): int =
+func bpp(kind: TextureCompressionKind): int =
     case kind
-    of cmpBC1, cmpBC4, cmpETC1: 4
-    of cmpBC3, cmpBC5, cmpBC6H, cmpBC7, cmpASTC: 8
-    of cmpNoneRGB : 24
-    of cmpNoneRGBA: 32
+    of tckBc1, tckBc4, tckEtc1: 4
+    of tckBc3, tckBc5, tckBc6H, tckBc7, tckAstc: 8
+    of tckNoneRgb : 24
+    of tckNoneRgba: 32
 
-proc encode_dds*(kind: TextureCompressionKind; data: openArray[byte]; w, h, mip_count: int): DDSFile =
-    let bpp = get_bpp kind
-    let pixel_format = PixelFormats[kind]
+proc encode*(kind: TextureCompressionKind; data: openArray[byte]; w, h, mip_count: int): File =
+    let bpp    = kind.bpp
+    let px_fmt = PixelFormats[kind]
 
     var pitch: int
     var flags = ddsCaps or ddsHeight or ddsWidth or ddsPixelFormat
-    if kind == cmpNoneRGB or kind == cmpNoneRGBA:
+    if kind == tckNoneRgb or kind == tckNoneRgba:
         flags = flags or ddsPitch
         pitch = (w * bpp) div 8
     else:
@@ -211,37 +209,36 @@ proc encode_dds*(kind: TextureCompressionKind; data: openArray[byte]; w, h, mip_
         pitch = (w * h * bpp) div 8
 
     if mip_count > 1:
-        flags = flags or ddsMipmapCount
+        flags = flags or ddsMipMapCount
 
-    result = DDSFile(
-        data: data[0].addr,
-        data_size: data.len,
-        header: DDSHeader(
-            flags               : flags,
-            width               : uint32 w,
-            height              : uint32 h,
-            pitch_or_linear_size: uint32 pitch,
-            mipmap_count        : uint32 mip_count,
-            pf                  : pixel_format,
-            surface_flags       : if mip_count > 1: sfMipmap else: sfTexture,
+    result = File(
+        data   : data[0].addr,
+        data_sz: data.len,
+        header: Header(
+            flags             : flags,
+            w                 : uint32 w,
+            h                 : uint32 h,
+            pitch_or_linear_sz: uint32 pitch,
+            mip_map_count     : uint32 mip_count,
+            px_fmt            : px_fmt,
+            surf_flags        : if mip_count > 1: surfMipMap else: surfTexture,
         ),
-        dxt10_header: DDSHeaderDXT10(
-            dxgi_format       : compression_to_format kind,
-            resource_dimension: rdTexture2D,
-            array_size        : 1,
+        dxt10_header: HeaderDxt10(
+            dxgi_fmt: kind,
+            res_dim : rdTexture2D,
+            arr_sz  : 1,
         ),
     )
 
-proc write*(file: FileStream; dds_file: DDSFile) =
-    assert dds_file.header.size == DDSHeaderSize
+proc write*(dst: FileStream; file: File) =
+    assert file.header.sz == HeaderSize
 
-    file.write DDSMagic
-    file.write dds_file.header
-    if dds_file.header.pf.fourcc == ['D', 'X', '1', '0']:
-        file.write dds_file.dxt10_header
-    file.write_data dds_file.data, dds_file.data_size
+    dst.write Magic
+    dst.write file.header
+    if file.header.px_fmt.fourcc == ['D', 'X', '1', '0']:
+        dst.write file.dxt10_header
+    dst.write_data file.data, file.data_sz
 
 static:
-    assert (sizeof DDSHeader)      == DDSHeaderSize
-    assert (sizeof DDSPixelFormat) == DDSPixelFormatSize
-
+    assert (sizeof Header)      == HeaderSize
+    assert (sizeof PixelFormat) == PixelFormatSize

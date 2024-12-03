@@ -18,8 +18,8 @@
 #    misrepresented as being the original software.
 # 3. This notice may not be removed or altered from any source distribution.
 
-const NAIMagic*  : array[4, byte] = [78, 65, 73, 126] # "NAI~"
-const NAIVersion*: array[2, byte] = [0, 0]
+const Magic*  : array[4, byte] = [78, 65, 73, 126] # "NAI~"
+const Version*: array[2, byte] = [0, 0]
 
 type
     LayoutFlag* = enum
@@ -30,173 +30,175 @@ type
     LayoutMask* {.size: sizeof(uint16).} = set[LayoutFlag]
 
     CompressionKind* {.size: sizeof(uint16).} = enum
-        cmpNone
-        cmpZLib
+        ckNone
+        ckZLib
 
     ContainerKind* = enum
-        cntNone
-        cntDDS
-        cntPNG
+        ckNone
+        ckDds
+        ckPng
 
     VertexKind* {.size: sizeof(uint8).} = enum
-        vtxNone
-        vtxPosition
-        vtxNormal
-        vtxTangent
-        vtxBitangent
-        vtxColourRGBA
-        vtxColourRGB
-        vtxUV
-        vtxUV3
+        vkNone
+        vkPosition
+        vkNormal
+        vkTangent
+        vkBitangent
+        vkColourRgba
+        vkColourRgb
+        vkUv
+        vkUv3
 
     MaterialValue* {.size: sizeof(uint8).} = enum
-        mtlNone
-        mtlName
-        mtlTwoSided
-        mtlBaseColour
-        mtlMetallicFactor
-        mtlRoughnessFactor
-        mtlSpecularFactor
-        mtlGlossinessFactor
-        mtlAnisotropyFactor
-        mtlSheenColourFactor
-        mtlSheenRoughnessFactor
-        mtlClearcoatFactor
-        mtlClearcoatRoughnessFactor
-        mtlOpacity
-        mtlBumpScaling
-        mtlShininess
-        mtlReflectivity
-        mtlRefractiveIndex
-        mtlColourDiffuse
-        mtlColourAmbient
-        mtlColourSpecular
-        mtlColourEmissive
-        mtlColourTransparent
-        mtlColourReflective
-        mtlTransmissionFactor
-        mtlVolumeThicknessFactor
-        mtlVolumeAttenuationDistance
-        mtlVolumeAttenuationColour
-        mtlEmissiveIntensity
+        mvNone
+        mvName
+        mvTwoSided
+        mvBaseColour
+        mvMetallicFactor
+        mvRoughnessFactor
+        mvSpecularFactor
+        mvGlossinessFactor
+        mvAnisotropyFactor
+        mvSheenColourFactor
+        mvSheenRoughnessFactor
+        mvClearcoatFactor
+        mvClearcoatRoughnessFactor
+        mvOpacity
+        mvBumpScaling
+        mvShininess
+        mvReflectivity
+        mvRefractiveIndex
+        mvColourDiffuse
+        mvColourAmbient
+        mvColourSpecular
+        mvColourEmissive
+        mvColourTransparent
+        mvColourReflective
+        mvTransmissionFactor
+        mvVolumeThicknessFactor
+        mvVolumeAttenuationDistance
+        mvVolumeAttenuationColour
+        mvEmissiveIntensity
 
     TextureKind* {.size: sizeof(uint16).} = enum
-        texNone
-        texDiffuse
-        texSpecular
-        texAmbient
-        texEmissive
-        texHeight
-        texNormals
-        texShininess
-        texOpacity
-        texDisplacement
-        texLightmap
-        texReflection
-        texBaseColour
-        texNormalCamera
-        texEmissionColour
-        texMetalness
-        texDiffuseRoughness
-        texAmbientOcclusion
-        texUnknown
-        texSheen
-        texClearcoat
-        texTransmission
+        tkNone
+        tkDiffuse
+        tkSpecular
+        tkAmbient
+        tkEmissive
+        tkHeight
+        tkNormals
+        tkShininess
+        tkOpacity
+        tkDisplacement
+        tkLightmap
+        tkReflection
+        tkBaseColour
+        tkNormalCamera
+        tkEmissionColour
+        tkMetalness
+        tkDiffuseRoughness
+        tkAmbientOcclusion
+        tkUnknown
+        tkSheen
+        tkClearcoat
+        tkTransmission
 
     TextureFormat* {.size: sizeof(uint16).} = enum
         tfNone
 
         tfR
-        tfRG
-        tfRGB
-        tfRGBA
+        tfRg
+        tfRgb
+        tfRgba
 
-        tfBC1 = 100
-        tfBC3
-        tfBC4
-        tfBC5
-        tfBC6H
-        tfBC7
+        tfBc1 = 100
+        tfBc3
+        tfBc4
+        tfBc5
+        tfBc6H
+        tfBc7
 
-        tfETC1 = 200
+        tfEtc1 = 200
 
-        tfASTC4x4 = 300
+        tfAstc4x4 = 300
 
     IndexSize* {.size: sizeof(uint16).} = enum
-        iszNone
-        isz8Bit
-        isz16Bit
-        isz32Bit
-        isz64Bit
+        isNone
+        is8Bit
+        is16Bit
+        is32Bit
+        is64Bit
 
 type
     Header* = object
-        magic*           : array[4, byte]
-        version*         : array[2, byte]
-        layout_mask*     : LayoutMask
-        vertex_kinds*    : array[8, VertexKind]
-        material_values* : array[8, MaterialValue]
-        compression_kind*: CompressionKind
-        mesh_count*      : uint16
-        material_count*  : uint16
-        texture_count*   : uint16
-        animation_count* : uint16
-        skeleton_count*  : uint16
+        magic*       : array[4, byte]
+        version*     : array[2, byte]
+        layout_mask* : LayoutMask
+        vtx_kinds*   : array[8, VertexKind]
+        mtl_vals*    : array[8, MaterialValue]
+        cmp_kind*    : CompressionKind
+        mesh_cnt*    : uint16
+        mtl_cnt*     : uint16
+        tex_cnt*     : uint16
+        anim_cnt*    : uint16
+        skeleton_cnt*: uint16
 
     MeshHeader* = object
-        material_index*: uint16
-        index_size*    : IndexSize
-        vert_count*    : uint32
-        index_count*   : uint32
-        # verts: array[vert_count, float32]
+        mtl_idx*: uint16
+        idx_sz* : IndexSize
+        vtx_cnt*: uint32
+        idx_cnt*: uint32
+        # verts: array[vert_cnt, float32]
 
     MaterialHeader* = object
-        texture_count*: uint16
-        _             : uint16
-        # material_data: struct
-        # texture_data : array[texture_count, TextureHeader]
+        tex_cnt*: uint16
+        _       : uint16
+        # mtl_data: struct
+        # tex_data: array[tex_cnt, TextureHeader]
 
     TextureHeader* = object
-        kind*  : TextureKind
-        format*: TextureFormat
-        w*, h* : uint16
+        kind* : TextureKind
+        fmt*  : TextureFormat
+        w*, h*: uint16
         # data: array[<format_size> * w * h, byte]
 
-converter index_size_to_int*(kind: IndexSize): int =
+converter `IndexSize -> int`*(kind: IndexSize): int =
     case kind
-    of iszNone : 0
-    of isz8Bit : 1
-    of isz16Bit: 2
-    of isz32Bit: 4
-    of isz64Bit: 8
+    of isNone : 0
+    of is8Bit : 1
+    of is16Bit: 2
+    of is32Bit: 4
+    of is64Bit: 8
 
-func size*(kind: VertexKind): int =
+converter `VertexKind -> int`*(kind: VertexKind): int =
     case kind
-    of vtxNone: 0
-    of vtxPosition, vtxNormal,
-       vtxTangent , vtxBitangent,
-       vtxUV3       : 3 * sizeof float32
-    of vtxColourRGBA: 4 * sizeof uint8
-    of vtxColourRGB : 3 * sizeof uint8
-    of vtxUV        : 2 * sizeof float32
+    of vkNone: 0
+    of vkPosition, vkNormal,
+       vkTangent , vkBitangent,
+       vkUV3       : 3 * sizeof float32
+    of vkColourRgba: 4 * sizeof uint8
+    of vkColourRgb : 3 * sizeof uint8
+    of vkUv        : 2 * sizeof float32
 
-func size*(kind: MaterialValue): int =
+converter `MaterialValue -> int`*(kind: MaterialValue): int =
     case kind
-    of mtlBaseColour       , mtlColourDiffuse , mtlVolumeAttenuationColour,
-       mtlColourAmbient    , mtlColourSpecular, mtlColourEmissive,
-       mtlColourTransparent, mtlColourReflective: 16
-    of mtlTwoSided: 1
+    of mvBaseColour       , mvColourDiffuse , mvVolumeAttenuationColour,
+       mvColourAmbient    , mvColourSpecular, mvColourEmissive,
+       mvColourTransparent, mvColourReflective: 16
+    of mvTwoSided: 1
     else: 4
 
 func bpp*(kind: TextureFormat): int =
     case kind
     of tfNone: 0
-    of tfRG  : 16
-    of tfRGB : 24
-    of tfRGBA: 32
-    of tfBC1, tfBC4: 4
-    of tfR, tfBC3, tfBC5, tfBC6H, tfBC7: 8
-    of tfETC1   : 0 # TODO
-    of tfASTC4x4: 0 # TODO
+    of tfRg  : 16
+    of tfRgb : 24
+    of tfRgba: 32
+    of tfBc1, tfBc4: 4
+    of tfR, tfBc3, tfBc5, tfBc6H, tfBc7: 8
+    of tfEtc1   : 0 # TODO
+    of tfAstc4x4: 0 # TODO
 
+func size*(kind: TextureFormat; w: SomeInteger; h: SomeInteger): int =
+    (kind.bpp div 4) * int w * int h

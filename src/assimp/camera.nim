@@ -4,22 +4,21 @@
 
 import common
 
-type AICamera* = object
-    name*       : AIString
-    position*   : AIVec3
-    up*         : AIVec3
-    look_at*    : AIVec3
-    hfov*       : float32
-    clip_near*  : float32
-    clip_far*   : float32
-    aspect*     : float32
-    ortho_width*: float32
+type AiCamera* = object
+    name*     : AiString
+    pos*      : AiVec3
+    up*       : AiVec3
+    look_at*  : AiVec3
+    fov*      : float32
+    clip_near*: float32
+    clip_far* : float32
+    aspect*   : float32
+    ortho_w*  : float32
 
-func `$`*(cam: AICamera | ptr AICamera): string = &"""
-AICamera '{cam.name}' with horizontal fov of {cam.hfov:.2f}, aspect ratio {cam.aspect} and orthogonal width of {cam.ortho_width}
-    Position      {cam.position}
+func `$`*(cam: AiCamera | ptr AiCamera): string = &"""
+AiCamera '{cam.name}' with horizontal fov of {cam.fov:.2f}, aspect ratio {cam.aspect} and orthogonal width of {cam.ortho_w}
+    Position      {cam.pos}
     Up            {cam.up}
     Look At       {cam.look_at}
     Clip Near/Far {cam.clip_near}/{cam.clip_far}
 """
-

@@ -5,34 +5,34 @@
 import common
 
 type
-    AILightSourceKind* = enum
-        lsUndefined
-        lsDirectional
-        lsPoint
-        lsSpot
-        lsAmbient
-        lsArea
-    AILight* = object
-        name*                 : AIString
-        kind*                 : AILightSourceKind
-        position*             : AIVec3
-        direction*            : AIVec3
-        up*                   : AIVec3
-        attenuation_constant* : float32
-        attenuation_linear*   : float32
-        attenuation_quadratic*: float32
-        colour_diffuse*       : AIColour3
-        colour_specular*      : AIColour3
-        colour_ambient*       : AIColour3
-        angle_inner_cone*     : float32
-        angle_outer_cone*     : float32
-        size*                 : AIVec2
+    AiLightSourceKind* = enum
+        lskUndefined
+        lskDirectional
+        lskPoint
+        lskSpot
+        lskAmbient
+        lskArea
 
-func `$`*(light: AILight | ptr AILight): string = &"""
-AILight '{light.name}' is {light.kind} with size {light.size}
-    Position/Direction/Up                  {light.position}/{light.direction}/{light.up}
-    Attentuation Constant/Linear/Quadratic {light.attenuation_constant}/{light.attenuation_linear}/{light.attenuation_quadratic}
+    AiLight* = object
+        name*            : AiString
+        kind*            : AiLightSourceKind
+        pos*             : AiVec3
+        dir*             : AiVec3
+        up*              : AiVec3
+        atten_constant*  : float32
+        atten_linear*    : float32
+        atten_quadratic* : float32
+        colour_diffuse*  : AiColour3
+        colour_specular* : AiColour3
+        colour_ambient*  : AiColour3
+        angle_inner_cone*: float32
+        angle_outer_cone*: float32
+        sz*              : AiVec2
+
+func `$`*(light: AiLight | ptr AiLight): string = &"""
+AiLight '{light.name}' is {light.kind} with size {light.sz}
+    Position/Direction/Up                  {light.pos}/{light.dir}/{light.up}
+    Attentuation Constant/Linear/Quadratic {light.atten_constant}/{light.atten_linear}/{light.atten_quadratic}
     Colour Diffuse/Specular/Ambient        {light.colour_diffuse}/{light.colour_specular}/{light.colour_ambient}
     Angle Outer Cone/Inner Cone            {light.angle_inner_cone}/{light.angle_outer_cone}
 """
-
