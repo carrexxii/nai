@@ -30,7 +30,7 @@ func bytes_to_string(bytes: int): string =
     else:
         &"{bytes}B"
 
-func layout_to_string(layout: LayoutMask): string =
+func layout_to_string(layout: set[LayoutFlag]): string =
     var flags: seq[string]
     for flag in layout:
         flags.add case flag

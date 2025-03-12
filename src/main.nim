@@ -43,19 +43,19 @@ proc write_help() =
     info "Nai - Copyright (C) 2024 carrexxii. All rights reserved."
     info "    This program comes with ABSOLUTELY NO WARRANTY and is licensed under the terms"
     info "    of the GNU General Public License version 3 only."
-    info "    For a copy, see the LICENSE file or <https://www.gnu.org/licenses/>.\n"
-
+    info "    For a copy, see the LICENSE file or <https://www.gnu.org/licenses/>."
+    info ""
     info "Usage:"
-    info "    nai [command] <file> [options]\n"
-
+    info "    nai [command] <file> [options]"
+    info ""
     info "Commands:"
     info "    convert, c              Converts input into a Nai file (Default)"
-    info "    analyze, a              Analyze and output data contained in a Nai file\n"
-
+    info "    analyze, a              Analyze and output data contained in a Nai file"
+    info ""
     info "Options: (opt:VAL or opt=VAL)"
     info "    -i, --input:PATH        Explicitly define an input file"
     info "    -o, --output:PATH       Define the output path (defaults to current directory)"
-    info "    -c, --config:FILE       Specify a configuration file (defaults to nai.ini)"
+    info "    -c, --config:FILE       Specify a configuration file (defaults to nai.cfg)"
     info "    -f, --force             Ignore warnings for unsupported components"
     info "    -v, --verbose           Output extra information about the file being compiled"
     info "    -q, --quiet             Don't output warnings"
@@ -97,14 +97,14 @@ proc bool_opt(key, val: string): bool =
 proc parse_config(cfg_file: Path): tuple[header: Header; tex_descrips: seq[TextureDescriptor]] =
     var path = cfg_file
     if path == default Path:
-        let cwd_ini_path = ~/get_app_dir() / ~/ConfigFileName
-        let bin_ini_path = cwd / ~/ConfigFileName
-        if file_exists cwd_ini_path:
-            path = cwd_ini_path
-        elif file_exists bin_ini_path:
-            path = bin_ini_path
+        let cwd_cfg_path = ~/get_app_dir() / ~/ConfigFileName
+        let bin_cfg_path = cwd / ~/ConfigFileName
+        if file_exists cwd_cfg_path:
+            path = cwd_cfg_path
+        elif file_exists bin_cfg_path:
+            path = bin_cfg_path
         else:
-            error "No configuration file specified and could not find 'nai.ini' (use --config/-c to specify)"
+            error "No configuration file specified and could not find 'nai.cfg' (use --config/-c to specify)"
             quit 1
 
     let config = load_config $path
@@ -114,10 +114,10 @@ proc parse_config(cfg_file: Path): tuple[header: Header; tex_descrips: seq[Textu
             var vc = 0
             for val in config[key].keys:
                 try:
-                    result.header.vtx_kinds[vc] = parse_enum[VertexKind] &"vtx{val}"
+                    result.header.vtx_kinds[vc] = parse_enum[VertexKind] &"vk{val}"
                     inc vc
                 except ValueError:
-                    let kinds = ($(full_set VertexKind)).multireplace(("vtx", ""), ("{", ""), ("}", ""))
+                    let kinds = ($(full_set VertexKind)).multireplace(("vk", ""), ("{", ""), ("}", ""))
                     error &"Invalid vertex kind '{val}': {kinds}"
                     quit 1
         of "materials":
@@ -125,22 +125,22 @@ proc parse_config(cfg_file: Path): tuple[header: Header; tex_descrips: seq[Textu
             for (k, v) in pairs config[key]:
                 if v == "":
                     try:
-                        result.header.mtl_vals[mc] = parse_enum[MaterialValue] &"mtl{k}"
+                        result.header.mtl_vals[mc] = parse_enum[MaterialValue] &"mv{k}"
                         inc mc
                     except ValueError:
-                        let kinds = ($(full_set MaterialValue)).multireplace(("mtl", ""), ("{", ""), ("}", ""))
+                        let kinds = ($(full_set MaterialValue)).multireplace(("mv", ""), ("{", ""), ("}", ""))
                         error &"Invalid material value '{k}': {kinds}"
                         quit 1
                 else:
                     try:
                         let dst = if '.' in v: v.split '.' else: @[v, ""]
                         result.tex_descrips.add TextureDescriptor(
-                            kind     : parse_enum[TextureKind]   &"tex{k}",
+                            kind     : parse_enum[TextureKind]   &"tk{k}",
                             fmt      : parse_enum[TextureFormat] &"tf{dst[0]}",
                             container: (if dst[1] == "":
                                             ckNone
                                         else:
-                                            parse_enum[ContainerKind] &"cnt{dst[1]}"),
+                                            parse_enum[ContainerKind] &"ck{dst[1]}"),
                         )
                     except ValueError:
                         error &"Invalid values for material: '{k}', '{v}'"
@@ -149,9 +149,9 @@ proc parse_config(cfg_file: Path): tuple[header: Header; tex_descrips: seq[Textu
             for (k, v) in pairs config[""]:
                 case k
                 of "Compression":
-                    try: result.header.cmp_kind = parse_enum[CompressionKind](&"cmp{to_upper_ascii v}")
+                    try: result.header.cmp_kind = parse_enum[CompressionKind](&"ck{to_upper_ascii v}")
                     except ValueError:
-                        let kinds = ($(full_set CompressionKind)).multireplace(("cmp", ""), ("{", ""), ("}", ""))
+                        let kinds = ($(full_set CompressionKind)).multireplace(("ck", ""), ("{", ""), ("}", ""))
                         error &"Invalid compression kind '{v}': {kinds}"
                         quit 1
                 else:
@@ -165,7 +165,7 @@ proc parse_config(cfg_file: Path): tuple[header: Header; tex_descrips: seq[Textu
 
     block validate_flags:
         let header = result.header
-        proc check(flags: LayoutMask): bool =
+        proc check(flags: set[LayoutFlag]): bool =
             let intersection = flags * header.layout_mask
             if intersection.len > 1:
                 error &"Incompatible flags '{intersection}'"

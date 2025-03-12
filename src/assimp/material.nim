@@ -2,7 +2,7 @@
 # It is distributed under the terms of the GNU General Public License version 3 only.
 # For a copy, see the LICENSE file or <https://www.gnu.org/licenses/>.
 
-import std/options, common, "../bitgen"
+import std/options, common, bitgen
 from std/strutils import to_lower_ascii, align_left
 
 const AiMaxTextureHintLen* = 9

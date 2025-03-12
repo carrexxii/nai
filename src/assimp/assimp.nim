@@ -2,11 +2,10 @@
 # It is distributed under the terms of the GNU General Public License version 3 only.
 # For a copy, see the LICENSE file or <https://www.gnu.org/licenses/>.
 
-import common, animation, camera, light, material, mesh
+import bitgen, common, animation, camera, light, material, mesh
 from std/strutils import split
 export common, animation, camera, light, material, mesh
 
-import "../bitgen"
 type AiProcessFlag* = distinct uint32
 AiProcessFlag.gen_bit_ops(
     processCalcTangentSpace        , processJoinIdenticalVertices, processMakeLeftHanded,
@@ -72,8 +71,9 @@ proc get_extension_list*(): seq[string] =
     result = ($lst).split ';'
 
 proc dump*(scene: ptr AiScene; file_name: string) =
+# Scene '{scene.name}' from '{file_name}' ({scene.flags})
     echo &"""
-Scene '{scene.name}' from '{file_name}' ({scene.flags})
+Scene '{scene.name}' from '{file_name}'
     {scene.mesh_cnt:2.} Meshes
     {scene.mtl_cnt:2.} Materials
     {scene.tex_cnt:2.} Textures

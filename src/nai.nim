@@ -18,6 +18,11 @@
 #    misrepresented as being the original software.
 # 3. This notice may not be removed or altered from any source distribution.
 
+import std/enumerate
+from std/strformat import `&`
+from std/sequtils  import filter_it
+from std/strutils  import join
+
 const Magic*  : array[4, byte] = [78, 65, 73, 126] # "NAI~"
 const Version*: array[2, byte] = [0, 0]
 
@@ -27,7 +32,6 @@ type
         lfVerticesSeparated
         lfTexturesInternal
         lfTexturesExternal
-    LayoutMask* {.size: sizeof(uint16).} = set[LayoutFlag]
 
     CompressionKind* {.size: sizeof(uint16).} = enum
         ckNone
@@ -134,7 +138,8 @@ type
     Header* = object
         magic*       : array[4, byte]
         version*     : array[2, byte]
-        layout_mask* : LayoutMask
+        layout_mask* : set[LayoutFlag]
+        _            : byte # sizeof set[LayoutFlag] == 1
         vtx_kinds*   : array[8, VertexKind]
         mtl_vals*    : array[8, MaterialValue]
         cmp_kind*    : CompressionKind
@@ -201,4 +206,33 @@ func bpp*(kind: TextureFormat): int =
     of tfAstc4x4: 0 # TODO
 
 func size*(kind: TextureFormat; w: SomeInteger; h: SomeInteger): int =
-    (kind.bpp div 4) * int w * int h
+    (kind.bpp div 4) * (int w) * (int h)
+
+func size*(header: TextureHeader): int =
+    header.fmt.size header.w, header.h
+
+func validate*(header: Header; expected_mtls: openArray[MaterialValue]): seq[string] =
+    if header.magic   != Magic  : result.add &"Invalid magic number: '{header.magic}' should be '{Magic}'"
+    if header.version != Version: result.add &"Version mismatch: '{header.version}' should be '{Version}'"
+
+    for (i, val) in enumerate expected_mtls:
+        if val != header.mtl_vals[i]:
+            let expect = (expected_mtls.filter_it it != mvNone).join ", "
+            let got    = (header.mtl_vals.filter_it it != mvNone).join ", "
+            result.add &"Mismatched material values: got '{got}', expected '{expect}'"
+            break
+    # TODO
+    # - Layout mask
+    # - Vertex kinds
+    # - Material values
+    # - Compression kind
+    # - counts vs set vertex kinds
+
+# Keep synced with the header file
+static:
+    assert (sizeof set[LayoutFlag]) == 1, $(sizeof set[LayoutFlag]) # For header alignment
+
+    assert (sizeof Header)         == 36, $(sizeof Header)
+    assert (sizeof MeshHeader)     == 12, $(sizeof MeshHeader)
+    assert (sizeof MaterialHeader) == 4 , $(sizeof MaterialHeader)
+    assert (sizeof TextureHeader)  == 8 , $(sizeof TextureHeader)

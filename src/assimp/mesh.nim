@@ -2,7 +2,7 @@
 # It is distributed under the terms of the GNU General Public License version 3 only.
 # For a copy, see the LICENSE file or <https://www.gnu.org/licenses/>.
 
-import common, "../bitgen"
+import common, bitgen
 from std/sequtils import foldl
 from std/strutils import join
 
@@ -86,8 +86,9 @@ func `$`*(mesh: AiMesh | ptr AiMesh): string =
         &"{colour_cnt   } colours",
         &"{tex_coord_cnt} texture coords",
     ].join ", "
+# AiMesh '{mesh.name}' of {mesh.prim_kinds} (has {vtx_kinds})
     &"""
-AiMesh '{mesh.name}' of {mesh.prim_kinds} (has {vtx_kinds})
+AiMesh '{mesh.name}' (has {vtx_kinds})
     {mesh.vtx_cnt } Vertices
     {mesh.face_cnt} Faces
     {mesh.bone_cnt} Bones
