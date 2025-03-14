@@ -4,7 +4,7 @@
 
 import
     std/[streams, parseopt, parsecfg, paths, tables, strutils],
-    common, assimp/assimp, compress, nai, util, output, analyze
+    common, assimp/assimp, compress, spirv_cross, nai, util, output, analyze
 from std/os       import get_app_dir
 from std/files    import file_exists
 from std/sequtils import foldl, to_seq, map_it
@@ -68,6 +68,9 @@ proc write_help() =
     info "Compression:"
     for lib in compress.get_versions():
         info &"    {lib.name} {lib.version}"
+
+    let spvc = spirv_cross.version()
+    info &"SpirV-Cross version {spvc.major}.{spvc.minor}.{spvc.patch}"
 
     quit 0
 

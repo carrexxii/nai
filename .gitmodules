@@ -10,3 +10,6 @@
 [submodule "lib/stb"]
 	path = lib/stb
 	url = https://github.com/nothings/stb
+[submodule "lib/spirv_cross"]
+	path = lib/spirv_cross
+	url = https://github.com/KhronosGroup/SPIRV-Cross
